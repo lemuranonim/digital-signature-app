@@ -1,0 +1,28 @@
+// app/globals.css
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer components {
+  .luxury-gradient {
+    @apply bg-gradient-to-r from-luxury-600 via-primary-600 to-luxury-700;
+  }
+  
+  .premium-card {
+    @apply bg-white rounded-2xl shadow-xl border border-gray-100 backdrop-blur-sm;
+  }
+  
+  .luxury-input {
+    @apply w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200;
+  }
+  
+  .luxury-button {
+    @apply bg-gradient-to-r from-primary-600 to-luxury-600 hover:from-primary-700 hover:to-luxury-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl;
+  }
+}
