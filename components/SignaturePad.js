@@ -99,7 +99,7 @@ export default function SignaturePad({ onSignatureChange }) {
     setDocumentId(docId)
     
     // Create validation URL with document data
-    const baseUrl = `https://luksurireka.com/validate/${docId}`
+    const baseUrl = `https://digital-signature-app-theta.vercel.app/validate/${docId}`
     const qrData = JSON.stringify({
       documentId: docId,
       validationUrl: baseUrl,

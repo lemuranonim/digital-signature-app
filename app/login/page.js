@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useRouter } from 'next/navigation'
 import { LogIn, Shield } from 'lucide-react'
+import Image from 'next/image'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -43,11 +44,17 @@ export default function LoginPage() {
         
         {/* Header */}
         <div className="text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl shadow-lg">
-                <Shield className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="text-3xl font-bold text-gray-900">Admin Login</h1>
-            <p className="text-gray-600">Digital Signature Management System</p>
+            <Image
+              src="/logo.png"
+              alt="Logo Perusahaan"
+              width={64}
+              height={64}
+              className="mx-auto mb-4 rouded-xl"
+            />
+            <h2 className="text-3xl font-extrabold text-gray-900">Admin Login</h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Digital Signature Management System
+            </p>
         </div>
 
         {/* Login Form */}

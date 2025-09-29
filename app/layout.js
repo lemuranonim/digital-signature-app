@@ -1,6 +1,7 @@
 import './globals.css'
 import { Inter } from 'next/font/google'
 import ScrollToTopButton from '../components/ScrollToTopButton'
+import Image from 'next/image'
 
 const inter = Inter({ 
   subsets: ['latin'],
@@ -57,18 +58,13 @@ export default function RootLayout({ children }) {
                 <div className="flex items-center space-x-4">
                   <div className="flex-shrink-0">
                     {/* Logo Container with Premium Design */}
-                    <div className="relative">
-                      <div className="flex items-center justify-center w-12 h-12 shadow-lg bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl">
-                        <svg className="text-white w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z"/>
-                          <path d="M14 2v6h6"/>
-                          <path d="M16 13H8"/>
-                          <path d="M16 17H8"/>
-                          <path d="M10 9H8"/>
-                        </svg>
-                      </div>
-                      <div className="absolute -inset-1 bg-gradient-to-r from-blue-400 to-purple-400 rounded-2xl opacity-20 blur animate-pulse"></div>
-                    </div>
+                    <Image
+                      src="/logo.png"
+                      alt="Logo PT LUKSURI REKA DIGITAL SOLUTIONS"
+                      width={48}
+                      height={48}
+                      className="rounded-xl"
+                    />
                   </div>
                   <div className="hidden sm:block">
                     <h1 className="text-2xl font-bold text-transparent bg-gradient-to-r from-blue-600 via-blue-700 to-purple-600 bg-clip-text">
