@@ -293,34 +293,15 @@ export const generateInvoicePDF = async (invoiceData) => {
   
   // QR Signature Section - positioned lower
   if (invoiceData.signature) {
-    currentY += 17  // Increased space before signature (was 20)
+    currentY += 8  // Increased space before signature (was 20)
     
     const isQRSignature = (invoiceData.signatureType === 'qr') || 
                          (invoiceData.signatureMetadata && invoiceData.signatureMetadata.type === 'qr')
     
     if (isQRSignature) {
-    //   // Premium QR Signature Box
-    //   pdf.setFillColor(248, 250, 252)
-    //   pdf.roundedRect(25, currentY, 166, 70, 8, 8, 'F')  // Height increased from 60 to 70
-      
-    //   // Elegant border
-    //   pdf.setLineWidth(2)
-    //   pdf.setDrawColor(...COLORS.secondary)
-    //   pdf.roundedRect(25, currentY, 166, 70, 8, 8, 'D')  // Height increased from 60 to 70
-      
-      // Title - centered
-    //   pdf.setTextColor(...COLORS.secondary)
-    //   setPremiumFont(pdf, 'bold', 14)
-    //   pdf.text('DIGITAL SIGNATURE VERIFICATION', 108, currentY + 13, { align: 'center' })
-      
-    //   // Decorative line
-    //   pdf.setLineWidth(3)
-    //   pdf.setDrawColor(...COLORS.secondary)
-    //   pdf.line(65, currentY + 19, 151, currentY + 19)
-      
       try {
         const documentId = invoiceData.signatureMetadata?.documentId || `DOC-${Date.now()}-${Math.floor(Math.random() * 1000)}`
-        const validationUrl = `https://luksurireka.com/validate/${documentId}`
+        const validationUrl = `https://digital-signature-app-theta.vercel.app/validate/${documentId}`
         
         // Generate QR code
         const qrCodeUrl = await generateRealQRCode(validationUrl, 140)
@@ -328,37 +309,37 @@ export const generateInvoicePDF = async (invoiceData) => {
         if (qrCodeUrl) {
           // QR Code with white background
           pdf.setFillColor(...COLORS.white)
-          pdf.roundedRect(35, currentY + 25, 38, 38, 4, 4, 'F')
+          pdf.roundedRect(35, currentY + 20, 38, 38, 4, 4, 'F')
           
           // QR Code border
           pdf.setLineWidth(1)
           pdf.setDrawColor(200, 200, 200)
-          pdf.roundedRect(35, currentY + 25, 38, 38, 4, 4, 'D')
+          pdf.roundedRect(35, currentY + 20, 38, 38, 4, 4, 'D')
           
           // Add QR image
-          pdf.addImage(qrCodeUrl, 'PNG', 37, currentY + 27, 34, 34)
+          pdf.addImage(qrCodeUrl, 'PNG', 37, currentY + 22, 34, 34)
         } else {
           // Fallback QR
           const fallbackQR = generateQRCodeCanvas(validationUrl, 150)
-          pdf.addImage(fallbackQR, 'PNG', 37, currentY + 27, 34, 34)
+          pdf.addImage(fallbackQR, 'PNG', 37, currentY + 22, 34, 34)
         }
         
         // QR Label
         setPremiumFont(pdf, 'bold', 8)
         pdf.setTextColor(...COLORS.lightText)
-        pdf.text('SCAN TO VERIFY', 54, currentY + 67, { align: 'center' })
+        pdf.text('SCAN TO VERIFY', 54, currentY + 62, { align: 'center' })
         
       } catch (error) {
         console.error('Error generating QR code:', error)
         
         // Fallback pattern
         pdf.setFillColor(...COLORS.white)
-        pdf.roundedRect(35, currentY + 25, 38, 38, 4, 4, 'F')
+        pdf.roundedRect(35, currentY + 20, 38, 38, 4, 4, 'F')
         
         pdf.setFillColor(0, 0, 0)
         const cellSize = 2.5
         const startX = 37
-        const startY = currentY + 27
+        const startY = currentY + 22
         
         // Draw QR pattern
         for (let i = 0; i < 3; i++) {
@@ -385,13 +366,13 @@ export const generateInvoicePDF = async (invoiceData) => {
         
         setPremiumFont(pdf, 'bold', 8)
         pdf.setTextColor(...COLORS.lightText)
-        pdf.text('SCAN TO VERIFY', 54, currentY + 67, { align: 'center' })
+        pdf.text('SCAN TO VERIFY', 54, currentY + 62, { align: 'center' })
       }
       
       // Signature Information
       pdf.setTextColor(...COLORS.text)
       setPremiumFont(pdf, 'bold', 11)
-      pdf.text('Electronically Signed by:', 80, currentY + 30)
+      pdf.text('Electronically Signed by:', 80, currentY + 25)
       
       const signerName = invoiceData.signatureMetadata?.signedBy || 'LUDTANZA SURYA WIJAYA, S.Pd.'
       const signerTitle = invoiceData.signatureMetadata?.signerTitle || 'Direktur'
@@ -399,13 +380,13 @@ export const generateInvoicePDF = async (invoiceData) => {
       // Signer name highlighted
       setPremiumFont(pdf, 'bold', 13)
       pdf.setTextColor(...COLORS.secondary)
-      pdf.text(signerName, 80, currentY + 40)
+      pdf.text(signerName, 80, currentY + 35)
       
       // Title and company
       setPremiumFont(pdf, 'normal', 10)
       pdf.setTextColor(...COLORS.text)
-      pdf.text(`${signerTitle}`, 80, currentY + 48)
-      pdf.text('PT LUKSURI REKA DIGITAL SOLUTIONS', 80, currentY + 55)
+      pdf.text(`${signerTitle}`, 80, currentY + 443)
+      pdf.text('PT LUKSURI REKA DIGITAL SOLUTIONS', 80, currentY + 50)
       
       // Timestamp
       const signatureDate = invoiceData.signatureMetadata?.timestamp ? 
@@ -413,12 +394,12 @@ export const generateInvoicePDF = async (invoiceData) => {
       
       setPremiumFont(pdf, 'italic', 8)
       pdf.setTextColor(...COLORS.lightText)
-      pdf.text(`Digitally signed on: ${signatureDate.toLocaleString('id-ID')}`, 80, currentY + 62)
+      pdf.text(`Digitally signed on: ${signatureDate.toLocaleString('id-ID')}`, 80, currentY + 57)
       
       // Document ID - moved further down
       if (invoiceData.signatureMetadata?.documentId) {
         setPremiumFont(pdf, 'normal', 7)
-        pdf.text(`Doc ID: ${invoiceData.signatureMetadata.documentId}`, 185, currentY + 82, { align: 'right' })
+        pdf.text(`Doc ID: ${invoiceData.signatureMetadata.documentId}`, 185, currentY + 75, { align: 'right' })
       }
       
     } else {
@@ -604,7 +585,7 @@ export const generateReceiptPDF = async (receiptData) => {
       
       try {
         const documentId = receiptData.signatureMetadata?.documentId || `RCP-${Date.now()}-${Math.floor(Math.random() * 1000)}`
-        const validationUrl = `https://luksurireka.com/validate/${documentId}`
+        const validationUrl = `https://digital-signature-app-theta.vercel.app/validate/${documentId}`
         
         const qrCodeUrl = await generateRealQRCode(validationUrl, 100)
         
