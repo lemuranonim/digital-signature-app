@@ -3,18 +3,27 @@
 
 import { useState, useEffect } from 'react'
 import { FileText, Receipt, PenTool, Plus, Download, BarChart3, TrendingUp, Zap, Shield } from 'lucide-react'
-import InvoiceForm from '../components/InvoiceForm'
-import ReceiptForm from '../components/ReceiptForm'
-import DocumentList from '../components/DocumentList'
-import Dashboard from '../components/Dashboard'
+import InvoiceForm from '../../components/InvoiceForm'
+import ReceiptForm from '../../components/ReceiptForm'
+import DocumentList from '../../components/DocumentList'
+import Dashboard from '../../components/Dashboard'
+import { supabase } from '../../lib/supabase'
+import { useRouter } from 'next/navigation'
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [isLoaded, setIsLoaded] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
     setIsLoaded(true)
   }, [])
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/login')
+    router.refresh() // Refresh to trigger layout changes
+  }
 
   const tabs = [
     { 
@@ -86,6 +95,13 @@ export default function Home() {
         
         {/* Content */}
         <div className="relative p-12">
+          {/* Tombol Logout di pojok kanan atas */}
+          <button 
+            onClick={handleLogout}
+            className="absolute top-6 right-6 flex items-center px-4 py-2 space-x-2 text-sm font-semibold text-white transition-all duration-200 border bg-white/15 backdrop-blur-sm rounded-xl border-white/20 hover:bg-white/25"
+          >
+            <span>Logout</span>
+          </button>
           <div className="max-w-4xl mx-auto text-center">
             {/* Main Title */}
             <div className="mb-8">
