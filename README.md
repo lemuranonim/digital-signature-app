@@ -1,5 +1,3 @@
-# README.md
-
 # Digital Signature App - PT LUKSURI REKA DIGITAL SOLUTIONS
 
 Web aplikasi profesional untuk mengelola invoice dan kwitansi digital dengan fitur tanda tangan elektronik. Dibangun dengan Next.js 14, Tailwind CSS, dan Supabase PostgreSQL.
@@ -289,7 +287,7 @@ Untuk bantuan teknis atau customization lebih lanjut:
 
 ## 📄 License
 
-© 2024 PT LUKSURI REKA DIGITAL SOLUTIONS. All rights reserved.
+© 2025 PT LUKSURI REKA DIGITAL SOLUTIONS. All rights reserved.
 
 ---
 

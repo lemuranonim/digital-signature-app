@@ -2,7 +2,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Trash2, FileText, Download } from 'lucide-react'
+import { Plus, Trash2, FileText, Download, Calculator, User, Calendar, Receipt, PenTool, RotateCcw } from 'lucide-react'
 import SignaturePad from './SignaturePad'
 import { generateInvoicePDF } from '../utils/pdfGenerator'
 import { supabase } from '../lib/supabase'
@@ -25,7 +25,28 @@ export default function InvoiceForm() {
   ])
   
   const [signature, setSignature] = useState('')
+  const [signatureMetadata, setSignatureMetadata] = useState({
+    type: 'manual',
+    documentId: null,
+    validationUrl: null,
+    signedBy: null,
+    signerTitle: null,
+    timestamp: null
+  })
   const [isGenerating, setIsGenerating] = useState(false)
+
+  const handleSignatureChange = (signatureData, metadata) => {
+    console.log('Signature data received:', { signatureData: signatureData ? 'Present' : 'Empty', metadata })
+    setSignature(signatureData)
+    setSignatureMetadata(metadata || {
+      type: 'manual',
+      documentId: null,
+      validationUrl: null,
+      signedBy: null,
+      signerTitle: null,
+      timestamp: null
+    })
+  }
 
   const addItem = () => {
     setItems([...items, { description: '', quantity: 1, unitPrice: 0 }])
@@ -63,6 +84,30 @@ export default function InvoiceForm() {
     return `INV-${year}${month}-${random}`
   }
 
+  const resetForm = () => {
+    setFormData({
+      clientName: '',
+      clientEmail: '',
+      clientAddress: '',
+      clientPhone: '',
+      issueDate: new Date().toISOString().split('T')[0],
+      dueDate: '',
+      notes: '',
+      taxRate: 11,
+      discountAmount: 0
+    })
+    setItems([{ description: '', quantity: 1, unitPrice: 0 }])
+    setSignature('')
+    setSignatureMetadata({
+      type: 'manual',
+      documentId: null,
+      validationUrl: null,
+      signedBy: null,
+      signerTitle: null,
+      timestamp: null
+    })
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setIsGenerating(true)
@@ -72,6 +117,19 @@ export default function InvoiceForm() {
       const subtotal = calculateSubtotal()
       const taxAmount = calculateTax()
       const total = calculateTotal()
+      
+      // Prepare signature metadata for database
+      const signatureDataForDB = {
+        signature_data: signature,
+        signature_type: signatureMetadata.type,
+        qr_document_id: signatureMetadata.documentId,
+        qr_validation_url: signatureMetadata.validationUrl,
+        qr_signed_by: signatureMetadata.signedBy,
+        qr_signer_title: signatureMetadata.signerTitle,
+        qr_timestamp: signatureMetadata.timestamp
+      }
+
+      console.log('Saving invoice with signature metadata:', signatureDataForDB)
       
       // Save to database
       const { data: invoice, error: invoiceError } = await supabase
@@ -89,13 +147,18 @@ export default function InvoiceForm() {
           discount_amount: formData.discountAmount,
           total_amount: total,
           notes: formData.notes,
-          signature_data: signature,
-          status: 'issued'
+          status: 'issued',
+          ...signatureDataForDB
         })
         .select()
         .single()
 
-      if (invoiceError) throw invoiceError
+      if (invoiceError) {
+        console.error('Invoice insertion error:', invoiceError)
+        throw invoiceError
+      }
+
+      console.log('Invoice saved successfully:', invoice)
 
       // Save invoice items
       const itemsToInsert = items.map(item => ({
@@ -110,336 +173,437 @@ export default function InvoiceForm() {
         .from('invoice_items')
         .insert(itemsToInsert)
 
-      if (itemsError) throw itemsError
-
-      // Generate PDF
-      const invoiceData = {
-        ...formData,
-        invoiceNumber,
-        items,
-        subtotal,
-        taxAmount,
-        total,
-        signature
+      if (itemsError) {
+        console.error('Invoice items insertion error:', itemsError)
+        throw itemsError
       }
+
+      // Prepare data for PDF generation
+      const invoiceData = {
+        invoiceNumber,
+        clientName: formData.clientName,
+        clientEmail: formData.clientEmail,
+        clientAddress: formData.clientAddress,
+        clientPhone: formData.clientPhone,
+        issueDate: formData.issueDate,
+        dueDate: formData.dueDate,
+        items: items,
+        subtotal: subtotal,
+        taxAmount: taxAmount,
+        discountAmount: formData.discountAmount,
+        total: total,
+        notes: formData.notes,
+        signature: signature,
+        signatureType: signatureMetadata.type,
+        signatureMetadata: signatureMetadata,
+        taxRate: formData.taxRate
+      }
+
+      console.log('Generating PDF with complete signature data:', {
+        hasSignature: !!signature,
+        signatureType: signatureMetadata.type,
+        signatureMetadata: signatureMetadata,
+        signatureDataLength: signature ? signature.length : 0
+      })
       
+      // Generate PDF
       await generateInvoicePDF(invoiceData)
       
       // Reset form
-      setFormData({
-        clientName: '',
-        clientEmail: '',
-        clientAddress: '',
-        clientPhone: '',
-        issueDate: new Date().toISOString().split('T')[0],
-        dueDate: '',
-        notes: '',
-        taxRate: 11,
-        discountAmount: 0
-      })
-      setItems([{ description: '', quantity: 1, unitPrice: 0 }])
-      setSignature('')
+      resetForm()
       
       alert('Invoice berhasil dibuat dan disimpan!')
       
     } catch (error) {
-      console.error('Error:', error)
-      alert('Terjadi kesalahan saat membuat invoice')
+      console.error('Error creating invoice:', error)
+      alert(`Terjadi kesalahan saat membuat invoice: ${error.message}`)
     } finally {
       setIsGenerating(false)
     }
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center space-x-3">
-        <FileText className="w-8 h-8 text-primary-600" />
-        <h2 className="text-2xl font-bold text-gray-900">Buat Invoice Baru</h2>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-6">
+    <div className="space-y-8">
+      <form onSubmit={handleSubmit} className="space-y-8">
         {/* Client Information */}
-        <div className="bg-gray-50 p-6 rounded-xl">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Informasi Klien</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nama Klien *
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.clientName}
-                onChange={(e) => setFormData({...formData, clientName: e.target.value})}
-                className="luxury-input"
-                placeholder="PT. Contoh Perusahaan"
-              />
+        <div className="overflow-hidden border shadow-xl bg-white/90 backdrop-blur-sm rounded-3xl border-gray-200/50">
+          <div className="p-8 border-b border-gray-100">
+            <div className="flex items-center space-x-3">
+              <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl">
+                <User className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Client Information</h3>
+                <p className="text-gray-600">Enter your client's business details</p>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email
-              </label>
-              <input
-                type="email"
-                value={formData.clientEmail}
-                onChange={(e) => setFormData({...formData, clientEmail: e.target.value})}
-                className="luxury-input"
-                placeholder="email@perusahaan.com"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Alamat
-              </label>
-              <textarea
-                value={formData.clientAddress}
-                onChange={(e) => setFormData({...formData, clientAddress: e.target.value})}
-                className="luxury-input"
-                rows="3"
-                placeholder="Alamat lengkap klien"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Telepon
-              </label>
-              <input
-                type="tel"
-                value={formData.clientPhone}
-                onChange={(e) => setFormData({...formData, clientPhone: e.target.value})}
-                className="luxury-input"
-                placeholder="+62 812 3456 7890"
-              />
+          </div>
+          
+          <div className="p-8">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div>
+                <label className="block mb-3 text-sm font-bold text-gray-700">
+                  Client Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.clientName}
+                  onChange={(e) => setFormData({...formData, clientName: e.target.value})}
+                  className="w-full px-5 py-4 transition-all duration-200 border-2 border-gray-200 bg-white/90 rounded-2xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                  placeholder="PT. Client Company Name"
+                />
+              </div>
+              <div>
+                <label className="block mb-3 text-sm font-bold text-gray-700">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  value={formData.clientEmail}
+                  onChange={(e) => setFormData({...formData, clientEmail: e.target.value})}
+                  className="w-full px-5 py-4 transition-all duration-200 border-2 border-gray-200 bg-white/90 rounded-2xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                  placeholder="client@company.com"
+                />
+              </div>
+              <div>
+                <label className="block mb-3 text-sm font-bold text-gray-700">
+                  Business Address
+                </label>
+                <textarea
+                  value={formData.clientAddress}
+                  onChange={(e) => setFormData({...formData, clientAddress: e.target.value})}
+                  className="w-full px-5 py-4 transition-all duration-200 border-2 border-gray-200 bg-white/90 rounded-2xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                  rows="3"
+                  placeholder="Complete business address..."
+                />
+              </div>
+              <div>
+                <label className="block mb-3 text-sm font-bold text-gray-700">
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  value={formData.clientPhone}
+                  onChange={(e) => setFormData({...formData, clientPhone: e.target.value})}
+                  className="w-full px-5 py-4 transition-all duration-200 border-2 border-gray-200 bg-white/90 rounded-2xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                  placeholder="+62 812 3456 7890"
+                />
+              </div>
             </div>
           </div>
         </div>
 
         {/* Invoice Details */}
-        <div className="bg-gray-50 p-6 rounded-xl">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Detail Invoice</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tanggal Invoice *
-              </label>
-              <input
-                type="date"
-                required
-                value={formData.issueDate}
-                onChange={(e) => setFormData({...formData, issueDate: e.target.value})}
-                className="luxury-input"
-              />
+        <div className="overflow-hidden border shadow-xl bg-white/90 backdrop-blur-sm rounded-3xl border-gray-200/50">
+          <div className="p-8 border-b border-gray-100">
+            <div className="flex items-center space-x-3">
+              <div className="p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl">
+                <Calendar className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Invoice Details</h3>
+                <p className="text-gray-600">Configure invoice dates and terms</p>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tanggal Jatuh Tempo *
-              </label>
-              <input
-                type="date"
-                required
-                value={formData.dueDate}
-                onChange={(e) => setFormData({...formData, dueDate: e.target.value})}
-                className="luxury-input"
-              />
+          </div>
+          
+          <div className="p-8">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div>
+                <label className="block mb-3 text-sm font-bold text-gray-700">
+                  Issue Date *
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={formData.issueDate}
+                  onChange={(e) => setFormData({...formData, issueDate: e.target.value})}
+                  className="w-full px-5 py-4 transition-all duration-200 border-2 border-gray-200 bg-white/90 rounded-2xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                />
+              </div>
+              <div>
+                <label className="block mb-3 text-sm font-bold text-gray-700">
+                  Due Date *
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={formData.dueDate}
+                  onChange={(e) => setFormData({...formData, dueDate: e.target.value})}
+                  className="w-full px-5 py-4 transition-all duration-200 border-2 border-gray-200 bg-white/90 rounded-2xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                />
+              </div>
             </div>
           </div>
         </div>
 
         {/* Invoice Items */}
-        <div className="bg-gray-50 p-6 rounded-xl">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Item Invoice</h3>
-            <button
-              type="button"
-              onClick={addItem}
-              className="flex items-center space-x-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Tambah Item</span>
-            </button>
-          </div>
-          
-          <div className="space-y-4">
-            {items.map((item, index) => (
-              <div key={index} className="grid grid-cols-1 md:grid-cols-6 gap-4 p-4 bg-white rounded-lg border">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Deskripsi
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={item.description}
-                    onChange={(e) => updateItem(index, 'description', e.target.value)}
-                    className="luxury-input"
-                    placeholder="Deskripsi layanan/produk"
-                  />
+        <div className="overflow-hidden border shadow-xl bg-white/90 backdrop-blur-sm rounded-3xl border-gray-200/50">
+          <div className="p-8 border-b border-gray-100">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="p-3 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl">
+                  <Receipt className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Jumlah
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    min="1"
-                    value={item.quantity}
-                    onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
-                    className="luxury-input"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Harga Satuan
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    value={item.unitPrice}
-                    onChange={(e) => updateItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                    className="luxury-input"
-                    placeholder="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Total
-                  </label>
-                  <input
-                    type="text"
-                    readOnly
-                    value={`Rp ${(item.quantity * item.unitPrice).toLocaleString('id-ID')}`}
-                    className="luxury-input bg-gray-100"
-                  />
-                </div>
-                <div className="flex items-end">
-                  <button
-                    type="button"
-                    onClick={() => removeItem(index)}
-                    disabled={items.length === 1}
-                    className={`p-3 rounded-lg ${
-                      items.length === 1 
-                        ? 'bg-gray-300 cursor-not-allowed' 
-                        : 'bg-red-500 hover:bg-red-600 text-white'
-                    }`}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <h3 className="text-xl font-bold text-gray-900">Invoice Items</h3>
+                  <p className="text-gray-600">Add products or services to invoice</p>
                 </div>
               </div>
-            ))}
+              <button
+                type="button"
+                onClick={addItem}
+                className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-2xl font-semibold hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5"
+              >
+                <Plus className="w-5 h-5" />
+                <span>Add Item</span>
+              </button>
+            </div>
+          </div>
+          
+          <div className="p-8">
+            <div className="space-y-6">
+              {items.map((item, index) => (
+                <div key={index} className="relative p-6 border border-gray-100 bg-gradient-to-r from-gray-50/80 to-white rounded-2xl">
+                  <div className="grid grid-cols-1 gap-6 md:grid-cols-6">
+                    <div className="md:col-span-2">
+                      <label className="block mb-3 text-sm font-bold text-gray-700">
+                        Description
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={item.description}
+                        onChange={(e) => updateItem(index, 'description', e.target.value)}
+                        className="w-full px-4 py-3 transition-all duration-200 bg-white border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10"
+                        placeholder="Service or product description"
+                      />
+                    </div>
+                    <div>
+                      <label className="block mb-3 text-sm font-bold text-gray-700">
+                        Quantity
+                      </label>
+                      <input
+                        type="number"
+                        required
+                        min="1"
+                        value={item.quantity}
+                        onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
+                        className="w-full px-4 py-3 transition-all duration-200 bg-white border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10"
+                      />
+                    </div>
+                    <div>
+                      <label className="block mb-3 text-sm font-bold text-gray-700">
+                        Unit Price (Rp)
+                      </label>
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        value={item.unitPrice}
+                        onChange={(e) => updateItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
+                        className="w-full px-4 py-3 transition-all duration-200 bg-white border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block mb-3 text-sm font-bold text-gray-700">
+                        Total
+                      </label>
+                      <div className="px-4 py-3 font-bold text-gray-900 bg-gray-100 border-2 border-gray-200 rounded-xl">
+                        Rp {(item.quantity * item.unitPrice).toLocaleString('id-ID')}
+                      </div>
+                    </div>
+                    <div className="flex items-end">
+                      <button
+                        type="button"
+                        onClick={() => removeItem(index)}
+                        disabled={items.length === 1}
+                        className={`p-3 rounded-xl transition-all duration-200 ${
+                          items.length === 1 
+                            ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+                            : 'bg-red-500 hover:bg-red-600 text-white hover:scale-105'
+                        }`}
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
         {/* Calculations */}
-        <div className="bg-gray-50 p-6 rounded-xl">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Perhitungan</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Diskon (Rp)
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={formData.discountAmount}
-                onChange={(e) => setFormData({...formData, discountAmount: parseFloat(e.target.value) || 0})}
-                className="luxury-input"
-                placeholder="0"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Pajak (%)
-              </label>
-              <input
-                type="number"
-                min="0"
-                max="100"
-                step="0.1"
-                value={formData.taxRate}
-                onChange={(e) => setFormData({...formData, taxRate: parseFloat(e.target.value) || 0})}
-                className="luxury-input"
-              />
+        <div className="overflow-hidden border shadow-xl bg-white/90 backdrop-blur-sm rounded-3xl border-gray-200/50">
+          <div className="p-8 border-b border-gray-100">
+            <div className="flex items-center space-x-3">
+              <div className="p-3 bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl">
+                <Calculator className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Invoice Calculations</h3>
+                <p className="text-gray-600">Configure discounts and tax rates</p>
+              </div>
             </div>
           </div>
           
-          <div className="mt-6 p-4 bg-white rounded-lg border-2 border-primary-200">
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Subtotal:</span>
-                <span className="font-medium">Rp {calculateSubtotal().toLocaleString('id-ID')}</span>
+          <div className="p-8">
+            <div className="grid grid-cols-1 gap-6 mb-8 md:grid-cols-2">
+              <div>
+                <label className="block mb-3 text-sm font-bold text-gray-700">
+                  Discount Amount (Rp)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.discountAmount}
+                  onChange={(e) => setFormData({...formData, discountAmount: parseFloat(e.target.value) || 0})}
+                  className="w-full px-5 py-4 transition-all duration-200 border-2 border-gray-200 bg-white/90 rounded-2xl focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10"
+                  placeholder="0"
+                />
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Diskon:</span>
-                <span className="font-medium text-red-600">- Rp {formData.discountAmount.toLocaleString('id-ID')}</span>
+              <div>
+                <label className="block mb-3 text-sm font-bold text-gray-700">
+                  Tax Rate (%)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={formData.taxRate}
+                  onChange={(e) => setFormData({...formData, taxRate: parseFloat(e.target.value) || 0})}
+                  className="w-full px-5 py-4 transition-all duration-200 border-2 border-gray-200 bg-white/90 rounded-2xl focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10"
+                />
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Pajak ({formData.taxRate}%):</span>
-                <span className="font-medium">Rp {calculateTax().toLocaleString('id-ID')}</span>
-              </div>
-              <hr className="border-primary-200" />
-              <div className="flex justify-between text-lg font-bold">
-                <span>Total:</span>
-                <span className="text-primary-600">Rp {calculateTotal().toLocaleString('id-ID')}</span>
+            </div>
+            
+            {/* Invoice Summary */}
+            <div className="p-8 border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-3xl">
+              <h4 className="mb-6 text-lg font-bold text-blue-900">Invoice Summary</h4>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between py-2">
+                  <span className="font-medium text-blue-700">Subtotal:</span>
+                  <span className="text-lg font-bold text-blue-900">Rp {calculateSubtotal().toLocaleString('id-ID')}</span>
+                </div>
+                {formData.discountAmount > 0 && (
+                  <div className="flex items-center justify-between py-2">
+                    <span className="font-medium text-blue-700">Discount:</span>
+                    <span className="text-lg font-bold text-red-600">- Rp {formData.discountAmount.toLocaleString('id-ID')}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between py-2">
+                  <span className="font-medium text-blue-700">Tax ({formData.taxRate}%):</span>
+                  <span className="text-lg font-bold text-blue-900">Rp {calculateTax().toLocaleString('id-ID')}</span>
+                </div>
+                <div className="pt-4 mt-4 border-t-2 border-blue-300">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xl font-bold text-blue-900">TOTAL:</span>
+                    <span className="text-2xl font-bold text-blue-600">Rp {calculateTotal().toLocaleString('id-ID')}</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
         {/* Notes */}
-        <div className="bg-gray-50 p-6 rounded-xl">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Catatan
-          </label>
-          <textarea
-            value={formData.notes}
-            onChange={(e) => setFormData({...formData, notes: e.target.value})}
-            className="luxury-input"
-            rows="3"
-            placeholder="Catatan tambahan untuk invoice..."
-          />
+        <div className="overflow-hidden border shadow-xl bg-white/90 backdrop-blur-sm rounded-3xl border-gray-200/50">
+          <div className="p-8 border-b border-gray-100">
+            <div className="flex items-center space-x-3">
+              <div className="p-3 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl">
+                <FileText className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Additional Notes</h3>
+                <p className="text-gray-600">Add terms, conditions, or special instructions</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-8">
+            <textarea
+              value={formData.notes}
+              onChange={(e) => setFormData({...formData, notes: e.target.value})}
+              className="w-full px-5 py-4 transition-all duration-200 border-2 border-gray-200 bg-white/90 rounded-2xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
+              rows="4"
+              placeholder="Payment terms, delivery conditions, or other important notes..."
+            />
+          </div>
         </div>
 
         {/* Digital Signature */}
-        <div className="bg-gray-50 p-6 rounded-xl">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Tanda Tangan Digital</h3>
-          <SignaturePad onSignatureChange={setSignature} />
+        <div className="overflow-hidden border shadow-xl bg-white/90 backdrop-blur-sm rounded-3xl border-gray-200/50">
+          <div className="p-8 border-b border-gray-100">
+            <div className="flex items-center space-x-3">
+              <div className="p-3 bg-gradient-to-br from-rose-500 to-rose-600 rounded-2xl">
+                <PenTool className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Digital Signature</h3>
+                <p className="text-gray-600">Add your electronic signature to the invoice</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-8">
+            <SignaturePad onSignatureChange={handleSignatureChange} />
+            
+            {/* Signature Preview */}
+            {signature && (
+              <div className="p-4 mt-6 bg-green-50 rounded-2xl">
+                <div className="flex items-center mb-2 space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-sm font-semibold text-green-800">
+                    {signatureMetadata.type === 'qr' ? 'QR Digital Signature Ready' : 'Manual Signature Captured'}
+                  </span>
+                </div>
+                {signatureMetadata.type === 'qr' && signatureMetadata.documentId && (
+                  <div className="mt-2 text-xs text-green-700">
+                    <p>Document ID: {signatureMetadata.documentId}</p>
+                    <p>Signed by: {signatureMetadata.signedBy}</p>
+                    <p>This QR signature will be embedded in the generated PDF</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Submit Button */}
-        <div className="flex justify-end space-x-4">
+        {/* Action Buttons */}
+        <div className="flex flex-col justify-end space-y-4 sm:flex-row sm:space-y-0 sm:space-x-6">
           <button
             type="button"
-            onClick={() => {
-              setFormData({
-                clientName: '',
-                clientEmail: '',
-                clientAddress: '',
-                clientPhone: '',
-                issueDate: new Date().toISOString().split('T')[0],
-                dueDate: '',
-                notes: '',
-                taxRate: 11,
-                discountAmount: 0
-              })
-              setItems([{ description: '', quantity: 1, unitPrice: 0 }])
-              setSignature('')
-            }}
-            className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            onClick={resetForm}
+            className="flex items-center justify-center px-8 py-4 space-x-2 font-semibold text-gray-700 transition-all duration-200 bg-white border-2 border-gray-300 rounded-2xl hover:bg-gray-50 hover:border-gray-400"
           >
-            Reset Form
+            <RotateCcw className="w-5 h-5" />
+            <span>Reset Form</span>
           </button>
+          
           <button
             type="submit"
             disabled={isGenerating}
-            className={`luxury-button flex items-center space-x-2 ${
-              isGenerating ? 'opacity-50 cursor-not-allowed' : ''
+            className={`flex items-center justify-center space-x-2 px-8 py-4 rounded-2xl font-bold text-lg transition-all duration-200 ${
+              isGenerating 
+                ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
+                : 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white hover:from-blue-700 hover:to-indigo-800 hover:shadow-xl hover:-translate-y-1'
             }`}
           >
-            <Download className="w-5 h-5" />
-            <span>{isGenerating ? 'Membuat Invoice...' : 'Buat & Download Invoice'}</span>
+            {isGenerating ? (
+              <>
+                <div className="w-5 h-5 border-2 rounded-full border-white/30 border-t-white animate-spin"></div>
+                <span>Creating Invoice...</span>
+              </>
+            ) : (
+              <>
+                <Download className="w-5 h-5" />
+                <span>Create & Download Invoice</span>
+              </>
+            )}
           </button>
         </div>
       </form>
