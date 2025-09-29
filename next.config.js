@@ -10,10 +10,10 @@ const nextConfig = {
     domains: [],
   },
   
-  // Experimental features if needed
-  experimental: {
-    optimizeCss: true,
-  },
+  // Hapus atau beri komentar pada bagian ini
+  // experimental: {
+  //   optimizeCss: true,
+  // },
 }
 
 module.exports = nextConfig
