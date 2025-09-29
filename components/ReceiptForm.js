@@ -122,6 +122,9 @@ export default function ReceiptForm() {
     setIsGenerating(true)
     
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error("Pengguna tidak ditemukan. Silakan login kembali.")
+
       const receiptNumber = generateReceiptNumber()
       const amountWords = numberToWords(formData.amountReceived) + ' rupiah'
       
@@ -150,6 +153,7 @@ export default function ReceiptForm() {
           payment_method: formData.paymentMethod,
           payment_date: formData.paymentDate,
           description: formData.description,
+          user_id: user.id,
           ...signatureDataForDB
         })
         .select()

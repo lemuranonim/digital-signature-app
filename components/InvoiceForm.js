@@ -113,6 +113,9 @@ export default function InvoiceForm() {
     setIsGenerating(true)
     
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error("Pengguna tidak ditemukan. Silakan login kembali.")
+
       const invoiceNumber = generateInvoiceNumber()
       const subtotal = calculateSubtotal()
       const taxAmount = calculateTax()
@@ -148,6 +151,7 @@ export default function InvoiceForm() {
           total_amount: total,
           notes: formData.notes,
           status: 'issued',
+          user_id: user.id,
           ...signatureDataForDB
         })
         .select()
