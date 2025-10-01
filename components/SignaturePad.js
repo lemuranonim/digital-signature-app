@@ -104,7 +104,7 @@ export default function SignaturePad({ onSignatureChange }) {
       documentId: docId,
       validationUrl: baseUrl,
       signedBy: 'LUDTANZA SURYA WIJAYA, S.Pd.',
-      signerTitle: 'Direktur PT LUKSURI REKA DIGITAL SOLUTIONS',
+      signerTitle: 'Direktur',
       timestamp: new Date().toISOString(),
       company: 'PT LUKSURI REKA DIGITAL SOLUTIONS',
       type: 'digital_signature_validation'
@@ -135,7 +135,7 @@ export default function SignaturePad({ onSignatureChange }) {
         documentId: docId,
         validationUrl: baseUrl,
         signedBy: 'LUDTANZA SURYA WIJAYA, S.Pd.',
-        signerTitle: 'Direktur PT LUKSURI REKA DIGITAL SOLUTIONS',
+        signerTitle: 'Direktur',
         timestamp: new Date().toISOString(),
         qrData: qrData
       })
@@ -153,7 +153,7 @@ export default function SignaturePad({ onSignatureChange }) {
         documentId: docId,
         validationUrl: baseUrl,
         signedBy: 'LUDTANZA SURYA WIJAYA, S.Pd.',
-        signerTitle: 'Direktur PT LUKSURI REKA DIGITAL SOLUTIONS',
+        signerTitle: 'Direktur',
         timestamp: new Date().toISOString(),
         qrData: qrData
       })

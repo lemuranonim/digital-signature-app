@@ -131,6 +131,7 @@ export default function DocumentList() {
           clientEmail: document.client_email || '',
           clientAddress: document.client_address || '',
           clientPhone: document.client_phone || '',
+          clientTaxId: document.client_tax_id || '',
           issueDate: document.issue_date,
           dueDate: document.due_date,
           items: invoiceItems.map(item => ({
@@ -143,8 +144,18 @@ export default function DocumentList() {
           discountAmount: document.discount_amount || 0,
           total: document.total_amount || 0,
           notes: document.notes || '',
+          taxRate: 11,
+
           signature: document.signature_data || null,
-          taxRate: 11
+          signatureType: document.signature_type || 'manual',
+          signatureMetadata: {
+            type: document.signature_type || 'manual',
+            documentId: document.qr_document_id || null,
+            validationUrl: document.qr_validation_url || null,
+            signedBy: document.qr_signed_by || null,
+            signerTitle: document.qr_signer_title || null,
+            timestamp: document.qr_timestamp || null
+          }
         }
 
         console.log('Invoice data prepared:', invoiceData)
@@ -174,13 +185,24 @@ export default function DocumentList() {
         const receiptData = {
           receiptNumber: document.receipt_number,
           payerName: document.payer_name,
+          payerAddress: document.payer_address || '',
           amountReceived: document.amount_received || 0,
           amountWords: document.amount_words || '',
           paymentMethod: document.payment_method || 'Transfer Bank',
           paymentDate: document.payment_date,
           description: document.description || '',
+          invoiceData: invoiceData,
+
           signature: document.signature_data || null,
-          invoiceData: invoiceData
+          signatureType: document.signature_type || 'manual',
+          signatureMetadata: {
+            type: document.signature_type || 'manual',
+            documentId: document.qr_document_id || null,
+            validationUrl: document.qr_validation_url || null,
+            signedBy: document.qr_signed_by || null,
+            signerTitle: document.qr_signer_title || null,
+            timestamp: document.qr_timestamp || null
+          }
         }
 
         console.log('Receipt data prepared:', receiptData)

@@ -2,12 +2,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Shield, CheckCircle, XCircle, AlertTriangle, FileText, User, Building2, Calendar, Clock, Download, QrCode } from 'lucide-react'
+import { Shield, CheckCircle, XCircle, AlertTriangle, FileText, User, Building2, Calendar, Clock, Download, QrCode, AlertCircle } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 
 export default function DocumentValidationPage({ params }) {
-  const [validationStatus, setValidationStatus] = useState('loading') // 'loading', 'valid', 'invalid', 'not_found'
+  const [validationStatus, setValidationStatus] = useState('loading') // 'loading', 'valid', 'invalid', 'not_found', 'expired'
   const [documentData, setDocumentData] = useState(null)
+  const [validationChecks, setValidationChecks] = useState(null)
   const [loading, setLoading] = useState(true)
   const { documentId } = params
 
@@ -23,11 +24,20 @@ export default function DocumentValidationPage({ params }) {
       
       if (prefix !== 'DOC' || !timestamp || !random) {
         setValidationStatus('invalid')
+        setValidationChecks({
+          validFormat: false,
+          hasQRSignature: false,
+          hasValidationUrl: false,
+          hasDocumentId: false,
+          hasSignerInfo: false,
+          hasTimestamp: false,
+          isNotExpired: false
+        })
         setLoading(false)
         return
       }
 
-      // Search for document with matching QR document ID directly
+      // Search for document with matching QR document ID
       // Try to find invoice first
       const { data: invoices, error: invoiceError } = await supabase
         .from('invoices')
@@ -75,12 +85,57 @@ export default function DocumentValidationPage({ params }) {
 
       if (!foundDocument) {
         setValidationStatus('not_found')
+        setValidationChecks({
+          validFormat: true,
+          hasQRSignature: false,
+          hasValidationUrl: false,
+          hasDocumentId: false,
+          hasSignerInfo: false,
+          hasTimestamp: false,
+          isNotExpired: false
+        })
         setLoading(false)
         return
       }
 
-      // Check if document has QR signature (must be 'qr' type to be valid)
-      if (foundDocument.signature_type !== 'qr') {
+      // Enhanced validation checks
+      const expectedUrl = `https://digital-signature-app-theta.vercel.app/validate/${documentId}`
+      
+      const checks = {
+        validFormat: true,
+        hasQRSignature: foundDocument.signature_type === 'qr',
+        hasValidationUrl: foundDocument.qr_validation_url === expectedUrl,
+        hasDocumentId: foundDocument.qr_document_id === documentId,
+        hasSignerInfo: !!(foundDocument.qr_signed_by || 'LUDTANZA SURYA WIJAYA, S.Pd.'),
+        hasTimestamp: !!(foundDocument.qr_timestamp || foundDocument.created_at),
+        isNotExpired: true // Will be checked below
+      }
+
+      // Check signature expiry (optional - set to 0 to disable expiry)
+      const SIGNATURE_VALIDITY_DAYS = 365 // 1 year validity (set to 0 to disable)
+      
+      if (SIGNATURE_VALIDITY_DAYS > 0 && checks.hasTimestamp) {
+        const signatureTimestamp = new Date(foundDocument.qr_timestamp || foundDocument.created_at)
+        const now = new Date()
+        const daysSinceSignature = Math.floor((now - signatureTimestamp) / (1000 * 60 * 60 * 24))
+        
+        checks.isNotExpired = daysSinceSignature <= SIGNATURE_VALIDITY_DAYS
+        
+        if (!checks.isNotExpired) {
+          setValidationStatus('expired')
+          setValidationChecks(checks)
+          setLoading(false)
+          return
+        }
+      }
+
+      // Check if all validation criteria are met
+      const isValid = Object.values(checks).every(check => check === true)
+      
+      setValidationChecks(checks)
+
+      if (!isValid) {
+        console.error('Validation failed:', checks)
         setValidationStatus('invalid')
         setLoading(false)
         return
@@ -97,10 +152,12 @@ export default function DocumentValidationPage({ params }) {
           clientName: foundDocument.client_name,
           amount: `Rp ${foundDocument.total_amount?.toLocaleString('id-ID') || '0'}`,
           issueDate: new Date(foundDocument.issue_date).toLocaleDateString('id-ID'),
-          signedBy: 'LUDTANZA SURYA WIJAYA, S.Pd.',
-          signerTitle: 'Direktur',
+          signedBy: foundDocument.qr_signed_by || 'LUDTANZA SURYA WIJAYA, S.Pd.',
+          signerTitle: foundDocument.qr_signer_title || 'Direktur',
           company: 'PT LUKSURI REKA DIGITAL SOLUTIONS',
-          signatureTimestamp: new Date(foundDocument.created_at).toLocaleString('id-ID'),
+          signatureTimestamp: foundDocument.qr_timestamp 
+            ? new Date(foundDocument.qr_timestamp).toLocaleString('id-ID')
+            : new Date(foundDocument.created_at).toLocaleString('id-ID'),
           validationUrl: foundDocument.qr_validation_url,
           securityHash: `SHA256:${documentId.replace(/-/g, '').toUpperCase()}`,
           status: foundDocument.status || 'issued',
@@ -108,6 +165,7 @@ export default function DocumentValidationPage({ params }) {
           clientEmail: foundDocument.client_email,
           clientAddress: foundDocument.client_address,
           clientPhone: foundDocument.client_phone,
+          clientTaxId: foundDocument.client_tax_id,
           dueDate: foundDocument.due_date ? new Date(foundDocument.due_date).toLocaleDateString('id-ID') : null,
           subtotal: foundDocument.subtotal,
           taxAmount: foundDocument.tax_amount,
@@ -123,10 +181,12 @@ export default function DocumentValidationPage({ params }) {
           clientName: foundDocument.payer_name,
           amount: `Rp ${foundDocument.amount_received?.toLocaleString('id-ID') || '0'}`,
           issueDate: new Date(foundDocument.payment_date).toLocaleDateString('id-ID'),
-          signedBy: 'LUDTANZA SURYA WIJAYA, S.Pd.',
-          signerTitle: 'Direktur',
+          signedBy: foundDocument.qr_signed_by || 'LUDTANZA SURYA WIJAYA, S.Pd.',
+          signerTitle: foundDocument.qr_signer_title || 'Direktur',
           company: 'PT LUKSURI REKA DIGITAL SOLUTIONS',
-          signatureTimestamp: new Date(foundDocument.created_at).toLocaleString('id-ID'),
+          signatureTimestamp: foundDocument.qr_timestamp 
+            ? new Date(foundDocument.qr_timestamp).toLocaleString('id-ID')
+            : new Date(foundDocument.created_at).toLocaleString('id-ID'),
           validationUrl: foundDocument.qr_validation_url,
           securityHash: `SHA256:${documentId.replace(/-/g, '').toUpperCase()}`,
           status: 'paid',
@@ -143,6 +203,15 @@ export default function DocumentValidationPage({ params }) {
     } catch (error) {
       console.error('Validation error:', error)
       setValidationStatus('error')
+      setValidationChecks({
+        validFormat: false,
+        hasQRSignature: false,
+        hasValidationUrl: false,
+        hasDocumentId: false,
+        hasSignerInfo: false,
+        hasTimestamp: false,
+        isNotExpired: false
+      })
     } finally {
       setLoading(false)
     }
