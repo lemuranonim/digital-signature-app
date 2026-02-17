@@ -28,7 +28,7 @@ export default function LoginPage() {
       if (error) throw error
 
       // Redirect to dashboard on successful login
-      router.push('/')
+      router.push('/admin')
       router.refresh() // Refresh to trigger layout changes
 
     } catch (error) {
@@ -98,8 +98,8 @@ export default function LoginPage() {
               type="submit"
               disabled={loading}
               className={`w-full flex items-center justify-center space-x-2 px-8 py-4 rounded-2xl font-bold text-lg text-white transition-all duration-200 ${loading
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 hover:shadow-xl hover:-translate-y-1'
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 hover:shadow-xl hover:-translate-y-1'
                 }`}
             >
               {loading ? (
