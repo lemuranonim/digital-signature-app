@@ -21,7 +21,7 @@ export default function DocumentValidationPage({ params }) {
     try {
       // Parse documentId format: DOC-timestamp-random
       const [prefix, timestamp, random] = documentId.split('-')
-      
+
       if (prefix !== 'DOC' || !timestamp || !random) {
         setValidationStatus('invalid')
         setValidationChecks({
@@ -99,8 +99,8 @@ export default function DocumentValidationPage({ params }) {
       }
 
       // Enhanced validation checks
-      const expectedUrl = `https://digital-signature-app-theta.vercel.app/validate/${documentId}`
-      
+      const expectedUrl = `https://sign.luksurireka.com/validate/${documentId}`
+
       const checks = {
         validFormat: true,
         hasQRSignature: foundDocument.signature_type === 'qr',
@@ -113,14 +113,14 @@ export default function DocumentValidationPage({ params }) {
 
       // Check signature expiry (optional - set to 0 to disable expiry)
       const SIGNATURE_VALIDITY_DAYS = 365 // 1 year validity (set to 0 to disable)
-      
+
       if (SIGNATURE_VALIDITY_DAYS > 0 && checks.hasTimestamp) {
         const signatureTimestamp = new Date(foundDocument.qr_timestamp || foundDocument.created_at)
         const now = new Date()
         const daysSinceSignature = Math.floor((now - signatureTimestamp) / (1000 * 60 * 60 * 24))
-        
+
         checks.isNotExpired = daysSinceSignature <= SIGNATURE_VALIDITY_DAYS
-        
+
         if (!checks.isNotExpired) {
           setValidationStatus('expired')
           setValidationChecks(checks)
@@ -131,7 +131,7 @@ export default function DocumentValidationPage({ params }) {
 
       // Check if all validation criteria are met
       const isValid = Object.values(checks).every(check => check === true)
-      
+
       setValidationChecks(checks)
 
       if (!isValid) {
@@ -143,7 +143,7 @@ export default function DocumentValidationPage({ params }) {
 
       // Prepare document data based on type
       let documentData = {}
-      
+
       if (documentType === 'invoice') {
         documentData = {
           id: documentId,
@@ -155,7 +155,7 @@ export default function DocumentValidationPage({ params }) {
           signedBy: foundDocument.qr_signed_by || 'LUDTANZA SURYA WIJAYA, S.Pd.',
           signerTitle: foundDocument.qr_signer_title || 'Direktur',
           company: 'PT LUKSURI REKA DIGITAL SOLUTIONS',
-          signatureTimestamp: foundDocument.qr_timestamp 
+          signatureTimestamp: foundDocument.qr_timestamp
             ? new Date(foundDocument.qr_timestamp).toLocaleString('id-ID')
             : new Date(foundDocument.created_at).toLocaleString('id-ID'),
           validationUrl: foundDocument.qr_validation_url,
@@ -184,7 +184,7 @@ export default function DocumentValidationPage({ params }) {
           signedBy: foundDocument.qr_signed_by || 'LUDTANZA SURYA WIJAYA, S.Pd.',
           signerTitle: foundDocument.qr_signer_title || 'Direktur',
           company: 'PT LUKSURI REKA DIGITAL SOLUTIONS',
-          signatureTimestamp: foundDocument.qr_timestamp 
+          signatureTimestamp: foundDocument.qr_timestamp
             ? new Date(foundDocument.qr_timestamp).toLocaleString('id-ID')
             : new Date(foundDocument.created_at).toLocaleString('id-ID'),
           validationUrl: foundDocument.qr_validation_url,
@@ -225,7 +225,7 @@ export default function DocumentValidationPage({ params }) {
       status: 'VERIFIED',
       signedBy: documentData.signedBy
     }
-    
+
     const blob = new Blob([JSON.stringify(certData, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -273,13 +273,12 @@ export default function DocumentValidationPage({ params }) {
 
       <div className="max-w-4xl px-4 py-8 mx-auto space-y-8">
         {/* Validation Status */}
-        <div className={`relative overflow-hidden rounded-3xl ${
-          validationStatus === 'valid' 
+        <div className={`relative overflow-hidden rounded-3xl ${validationStatus === 'valid'
             ? 'bg-gradient-to-br from-green-600 via-emerald-700 to-teal-800'
             : validationStatus === 'invalid' || validationStatus === 'expired'
-            ? 'bg-gradient-to-br from-red-600 via-rose-700 to-pink-800'
-            : 'bg-gradient-to-br from-amber-600 via-orange-700 to-red-800'
-        }`}>
+              ? 'bg-gradient-to-br from-red-600 via-rose-700 to-pink-800'
+              : 'bg-gradient-to-br from-amber-600 via-orange-700 to-red-800'
+          }`}>
           <div className="absolute inset-0 bg-black/10"></div>
           <div className="relative p-8">
             <div className="text-center">
@@ -288,14 +287,14 @@ export default function DocumentValidationPage({ params }) {
                 {(validationStatus === 'invalid' || validationStatus === 'expired') && <XCircle className="w-12 h-12 text-white" />}
                 {validationStatus === 'not_found' && <AlertTriangle className="w-12 h-12 text-white" />}
               </div>
-              
+
               <h2 className="mb-2 text-3xl font-bold text-white">
                 {validationStatus === 'valid' && 'Document Verified'}
                 {validationStatus === 'invalid' && 'Invalid Document'}
                 {validationStatus === 'expired' && 'Document Expired'}
                 {validationStatus === 'not_found' && 'Document Not Found'}
               </h2>
-              
+
               <p className="text-lg text-white/90">
                 {validationStatus === 'valid' && 'This document has been verified and contains a valid digital signature.'}
                 {validationStatus === 'invalid' && 'This document could not be verified or contains an invalid signature.'}
@@ -320,7 +319,7 @@ export default function DocumentValidationPage({ params }) {
                 </div>
               </div>
             </div>
-            
+
             <div className="p-8">
               <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
                 {/* Document Details */}
@@ -352,7 +351,7 @@ export default function DocumentValidationPage({ params }) {
                         </span>
                         <span className="font-bold text-gray-900">{documentData.issueDate}</span>
                       </div>
-                      
+
                       {/* Additional Invoice Details */}
                       {documentData.type === 'Invoice' && (
                         <>
@@ -370,19 +369,18 @@ export default function DocumentValidationPage({ params }) {
                           )}
                           <div className="flex items-start justify-between">
                             <span className="font-medium text-gray-600">Status:</span>
-                            <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                              documentData.status === 'paid' ? 'bg-green-100 text-green-800' :
-                              documentData.status === 'issued' ? 'bg-blue-100 text-blue-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}>
-                              {documentData.status === 'paid' ? 'Lunas' : 
-                               documentData.status === 'issued' ? 'Terbit' : 
-                               'Draft'}
+                            <span className={`px-2 py-1 rounded-full text-xs font-bold ${documentData.status === 'paid' ? 'bg-green-100 text-green-800' :
+                                documentData.status === 'issued' ? 'bg-blue-100 text-blue-800' :
+                                  'bg-gray-100 text-gray-800'
+                              }`}>
+                              {documentData.status === 'paid' ? 'Lunas' :
+                                documentData.status === 'issued' ? 'Terbit' :
+                                  'Draft'}
                             </span>
                           </div>
                         </>
                       )}
-                      
+
                       {/* Additional Receipt Details */}
                       {documentData.type === 'Receipt' && (
                         <>
@@ -460,7 +458,7 @@ export default function DocumentValidationPage({ params }) {
                       </tbody>
                     </table>
                   </div>
-                  
+
                   {/* Invoice Totals */}
                   <div className="p-4 mt-6 bg-gray-50 rounded-2xl">
                     <div className="flex justify-end">
@@ -526,7 +524,7 @@ export default function DocumentValidationPage({ params }) {
                 </div>
               </div>
             </div>
-            
+
             <div className="p-8">
               <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
                 <div className="space-y-4">
@@ -562,7 +560,7 @@ export default function DocumentValidationPage({ params }) {
                   </div>
                 </div>
               </div>
-              
+
               {/* Security Hash */}
               <div className="p-4 mt-6 bg-gray-50 rounded-2xl">
                 <p className="mb-2 text-sm font-bold text-gray-700">Security Hash:</p>

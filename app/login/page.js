@@ -26,7 +26,7 @@ export default function LoginPage() {
       })
 
       if (error) throw error
-      
+
       // Redirect to dashboard on successful login
       router.push('/')
       router.refresh() // Refresh to trigger layout changes
@@ -41,20 +41,20 @@ export default function LoginPage() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/80 to-indigo-100/60">
       <div className="w-full max-w-md p-8 m-4 space-y-8 bg-white/90 backdrop-blur-sm border border-gray-200/50 shadow-2xl rounded-3xl">
-        
+
         {/* Header */}
         <div className="text-center">
-            <Image
-              src="/logo.png"
-              alt="Logo Perusahaan"
-              width={64}
-              height={64}
-              className="mx-auto mb-4 rouded-xl"
-            />
-            <h2 className="text-3xl font-extrabold text-gray-900">Admin Login</h2>
-            <p className="mt-2 text-sm text-gray-600">
-              Digital Signature Management System
-            </p>
+          <Image
+            src="/logo.png"
+            alt="Logo Perusahaan"
+            width={64}
+            height={64}
+            className="mx-auto mb-4 rouded-xl"
+          />
+          <h2 className="text-3xl font-extrabold text-gray-900">Admin Login</h2>
+          <p className="mt-2 text-sm text-gray-600">
+            Digital Signature Management System
+          </p>
         </div>
 
         {/* Login Form */}
@@ -72,7 +72,7 @@ export default function LoginPage() {
               placeholder="admin@example.com"
             />
           </div>
-          
+
           <div>
             <label className="block mb-2 text-sm font-bold text-gray-700">
               Password
@@ -97,11 +97,10 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className={`w-full flex items-center justify-center space-x-2 px-8 py-4 rounded-2xl font-bold text-lg text-white transition-all duration-200 ${
-                loading
+              className={`w-full flex items-center justify-center space-x-2 px-8 py-4 rounded-2xl font-bold text-lg text-white transition-all duration-200 ${loading
                   ? 'bg-gray-400 cursor-not-allowed'
                   : 'bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 hover:shadow-xl hover:-translate-y-1'
-              }`}
+                }`}
             >
               {loading ? (
                 <>
@@ -119,7 +118,7 @@ export default function LoginPage() {
         </form>
 
         <p className="text-xs text-center text-gray-500">
-          © {new Date().getFullYear()} PT LUKSURI REKA DIGITAL SOLUTIONS
+          © 2025 PT LUKSURI REKA DIGITAL SOLUTIONS
         </p>
       </div>
     </div>

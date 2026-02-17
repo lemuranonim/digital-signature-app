@@ -30,50 +30,50 @@ const generateQRCode = async (data, size = 100) => {
 // Add QR signature section
 const addQRSignature = async (pdf, signatureData, yPos) => {
   if (!signatureData || !signatureData.signature) return yPos
-  
-  const isQRSignature = (signatureData.signatureType === 'qr') || 
-                       (signatureData.signatureMetadata && signatureData.signatureMetadata.type === 'qr')
-  
+
+  const isQRSignature = (signatureData.signatureType === 'qr') ||
+    (signatureData.signatureMetadata && signatureData.signatureMetadata.type === 'qr')
+
   if (isQRSignature) {
     try {
       const documentId = signatureData.signatureMetadata?.documentId || `DOC-${Date.now()}`
-      const validationUrl = `https://digital-signature-app-theta.vercel.app/validate/${documentId}`
-      
+      const validationUrl = `https://sign.luksurireka.com/validate/${documentId}`
+
       // Generate QR code
       const qrCodeUrl = await generateQRCode(validationUrl, 100)
-      
+
       if (qrCodeUrl) {
         // QR Code image
         pdf.addImage(qrCodeUrl, 'PNG', 20, yPos, 25, 25)
-        
+
         // QR label
         setFont(pdf, 'normal', 7)
         pdf.setTextColor(...COLORS.secondary)
         pdf.text('Scan to verify', 32.5, yPos + 28, { align: 'center' })
-        
+
         // Signature details - next to QR
         const signerName = signatureData.signatureMetadata?.signedBy || 'LUDTANZA SURYA WIJAYA, S.Pd.'
         const signerTitle = signatureData.signatureMetadata?.signerTitle || 'Direktur'
-        
+
         setFont(pdf, 'normal', 8)
         pdf.setTextColor(...COLORS.primary)
         pdf.text('Digitally signed by:', 50, yPos + 5)
-        
+
         setFont(pdf, 'bold', 9)
         pdf.text(signerName, 50, yPos + 11)
-        
+
         setFont(pdf, 'normal', 8)
         pdf.text(signerTitle, 50, yPos + 16)
-        
+
         // Timestamp
-        const signatureDate = signatureData.signatureMetadata?.timestamp ? 
+        const signatureDate = signatureData.signatureMetadata?.timestamp ?
           new Date(signatureData.signatureMetadata.timestamp) : new Date()
-        
+
         setFont(pdf, 'normal', 7)
         pdf.setTextColor(...COLORS.secondary)
-        pdf.text(`Signed: ${signatureDate.toLocaleString('en-US', { 
-          year: 'numeric', 
-          month: 'short', 
+        pdf.text(`Signed: ${signatureDate.toLocaleString('en-US', {
+          year: 'numeric',
+          month: 'short',
           day: 'numeric',
           hour: '2-digit',
           minute: '2-digit'
@@ -83,13 +83,13 @@ const addQRSignature = async (pdf, signatureData, yPos) => {
       console.error('Error adding QR signature:', error)
     }
   }
-  
+
   return yPos + 30
 }
 
 export const generateInvoicePDF = async (invoiceData) => {
   const pdf = new jsPDF('p', 'mm', 'a4')
-  
+
   let yPos = 20
 
   // Header - Simple (di kiri)
@@ -103,9 +103,9 @@ export const generateInvoicePDF = async (invoiceData) => {
   } catch (error) {
     console.error('Error adding logo:', error)
   }
-  
+
   yPos += 40
-  
+
   // Invoice details - kanan atas
   setFont(pdf, 'normal', 10)
   pdf.text(`Invoice number  ${invoiceData.invoiceNumber}`, 20, yPos)
@@ -113,14 +113,14 @@ export const generateInvoicePDF = async (invoiceData) => {
   pdf.text(`Date of issue     ${new Date(invoiceData.issueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, 20, yPos)
   yPos += 6
   pdf.text(`Date due            ${new Date(invoiceData.dueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, 20, yPos)
-  
+
   yPos += 15
-  
+
   // Company info
   setFont(pdf, 'bold', 11)
   pdf.text('PT LUKSURI REKA DIGITAL SOLUTIONS', 20, yPos)
   yPos += 6
-  
+
   setFont(pdf, 'normal', 9)
   pdf.text('Kedungwilut No. 3 001/002', 20, yPos)
   yPos += 5
@@ -129,17 +129,17 @@ export const generateInvoicePDF = async (invoiceData) => {
   pdf.text('Indonesia', 20, yPos)
   yPos += 5
   pdf.text('luksurireka@gmail.com', 20, yPos)
-  
+
   // Client info - kanan
   const clientY = yPos - 30
   setFont(pdf, 'bold', 11)
   pdf.text('Bill to', 110, clientY)
-  
+
   setFont(pdf, 'normal', 9)
   let clientYPos = clientY + 6
   pdf.text(invoiceData.clientName, 110, clientYPos)
   clientYPos += 5
-  
+
   if (invoiceData.clientAddress) {
     const addressLines = pdf.splitTextToSize(invoiceData.clientAddress, 80)
     addressLines.forEach(line => {
@@ -147,41 +147,41 @@ export const generateInvoicePDF = async (invoiceData) => {
       clientYPos += 5
     })
   }
-  
+
   if (invoiceData.clientEmail) {
     pdf.text(invoiceData.clientEmail, 110, clientYPos)
     clientYPos += 5
   }
-  
+
   if (invoiceData.clientTaxId) {
     pdf.text(`ID NPWP ${invoiceData.clientTaxId}`, 110, clientYPos)
   }
-  
+
   yPos += 25
-  
+
   // Amount due - highlighted
   pdf.setFillColor(...COLORS.lightGray)
   pdf.rect(20, yPos, 170, 12, 'F')
-  
+
   setFont(pdf, 'bold', 14)
   pdf.setTextColor(...COLORS.primary)
   pdf.text(`Rp ${invoiceData.total.toLocaleString('id-ID')} IDR`, 25, yPos + 8)
-  
+
   yPos += 20
-  
+
   // Table header
   pdf.setDrawColor(...COLORS.border)
   pdf.line(20, yPos, 190, yPos)
   yPos += 8
-  
+
   setFont(pdf, 'bold', 9)
   pdf.text('Description', 20, yPos)
   pdf.text('Qty', 130, yPos, { align: 'right' })
   pdf.text('Unit price', 155, yPos, { align: 'right' })
   pdf.text('Amount', 185, yPos, { align: 'right' })
-  
+
   yPos += 8
-  
+
   // Items
   setFont(pdf, 'normal', 9)
   invoiceData.items.forEach(item => {
@@ -191,40 +191,40 @@ export const generateInvoicePDF = async (invoiceData) => {
     pdf.text(`Rp ${(item.quantity * item.unitPrice).toLocaleString('id-ID')}`, 185, yPos, { align: 'right' })
     yPos += 6
   })
-  
+
   yPos += 5
   pdf.line(20, yPos, 190, yPos)
   yPos += 8
-  
+
   // Totals
   pdf.text('Subtotal', 130, yPos)
   pdf.text(`Rp ${invoiceData.subtotal.toLocaleString('id-ID')}`, 185, yPos, { align: 'right' })
   yPos += 6
-  
+
   if (invoiceData.discountAmount > 0) {
     pdf.text('Discount', 130, yPos)
     pdf.text(`-Rp ${invoiceData.discountAmount.toLocaleString('id-ID')}`, 185, yPos, { align: 'right' })
     yPos += 6
   }
-  
+
   pdf.text(`Tax (${invoiceData.taxRate || 11}%)`, 130, yPos)
   pdf.text(`Rp ${invoiceData.taxAmount.toLocaleString('id-ID')}`, 185, yPos, { align: 'right' })
   yPos += 6
-  
+
   setFont(pdf, 'bold', 10)
   pdf.text('Amount due', 130, yPos)
   pdf.text(`Rp ${invoiceData.total.toLocaleString('id-ID')} IDR`, 185, yPos, { align: 'right' })
-  
+
   yPos += 10
   pdf.line(20, yPos, 190, yPos)
-  
+
   // Notes if any
   if (invoiceData.notes) {
     yPos += 10
     setFont(pdf, 'bold', 9)
     pdf.setTextColor(...COLORS.primary)
     pdf.text('Notes:', 20, yPos)
-    
+
     yPos += 6
     setFont(pdf, 'normal', 8)
     const notesLines = pdf.splitTextToSize(invoiceData.notes, 170)
@@ -242,58 +242,58 @@ export const generateInvoicePDF = async (invoiceData) => {
   setFont(pdf, 'bold', 10)
   pdf.setTextColor(...COLORS.primary)
   pdf.text('Payment Method', 110, paymentYPos)
-  
+
   setFont(pdf, 'bold', 9)
   pdf.text('Bank Central Asia (BCA)', 110, paymentYPos + 6)
-  
+
   setFont(pdf, 'normal', 8)
   pdf.setTextColor(...COLORS.secondary)
   pdf.text('Account Name:', 110, paymentYPos + 12)
   pdf.text('LUKSURI REKA DIGITAL SOLUTIONS', 140, paymentYPos + 12)
-  
+
   pdf.text('Account Number:', 110, paymentYPos + 17)
   pdf.text('6005081266', 140, paymentYPos + 17)
-  
+
   pdf.text('Branch:', 110, paymentYPos + 22)
   pdf.text('Tulungagung', 140, paymentYPos + 22)
 
   // QR Signature
   await addQRSignature(pdf, invoiceData, yPos)
-  
+
   // Footer
   yPos = 290
   setFont(pdf, 'normal', 8)
   pdf.setTextColor(...COLORS.secondary)
   pdf.text('To learn more about or to discuss your invoice, please visit luksurireka.com/help', 20, yPos)
-  
+
   pdf.save(`Invoice-${invoiceData.invoiceNumber}.pdf`)
 }
 
 export const generateReceiptPDF = async (receiptData) => {
   const pdf = new jsPDF('p', 'mm', 'a4')
-  
+
   let yPos = 20
-  
+
   // Header
   setFont(pdf, 'bold', 24)
   pdf.setTextColor(...COLORS.primary)
   pdf.text('Receipt', 20, yPos)
-  
+
   yPos += 15
-  
+
   // Receipt details
   setFont(pdf, 'normal', 10)
   pdf.text(`Invoice number  ${receiptData.receiptNumber}`, 20, yPos)
   yPos += 6
   pdf.text(`Date paid          ${new Date(receiptData.paymentDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, 20, yPos)
-  
+
   yPos += 15
-  
+
   // Company info
   setFont(pdf, 'bold', 11)
   pdf.text('PT LUKSURI REKA DIGITAL SOLUTIONS', 20, yPos)
   yPos += 6
-  
+
   setFont(pdf, 'normal', 9)
   pdf.text('Kedungwilut No. 3 001/002', 20, yPos)
   yPos += 5
@@ -302,17 +302,17 @@ export const generateReceiptPDF = async (receiptData) => {
   pdf.text('Indonesia', 20, yPos)
   yPos += 5
   pdf.text('luksurireka@gmail.com', 20, yPos)
-  
+
   // Bill to
   const clientY = yPos - 30
   setFont(pdf, 'bold', 11)
   pdf.text('Bill to', 110, clientY)
-  
+
   setFont(pdf, 'normal', 9)
   let clientYPos = clientY + 6
   pdf.text(receiptData.payerName, 110, clientYPos)
   clientYPos += 5
-  
+
   if (receiptData.payerAddress) {
     const addressLines = pdf.splitTextToSize(receiptData.payerAddress, 80)
     addressLines.forEach(line => {
@@ -320,91 +320,91 @@ export const generateReceiptPDF = async (receiptData) => {
       clientYPos += 5
     })
   }
-  
+
   yPos += 25
-  
+
   // Amount paid - highlighted
   pdf.setFillColor(...COLORS.lightGray)
   pdf.rect(20, yPos, 170, 12, 'F')
-  
+
   setFont(pdf, 'bold', 14)
   pdf.setTextColor(...COLORS.primary)
   pdf.text(`Rp ${receiptData.amountReceived.toLocaleString('id-ID')} paid on ${new Date(receiptData.paymentDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, 25, yPos + 8)
-  
+
   yPos += 20
-  
+
   // Table
   pdf.setDrawColor(...COLORS.border)
   pdf.line(20, yPos, 190, yPos)
   yPos += 8
-  
+
   setFont(pdf, 'bold', 9)
   pdf.text('Description', 20, yPos)
   pdf.text('Qty', 130, yPos, { align: 'right' })
   pdf.text('Unit price', 155, yPos, { align: 'right' })
   pdf.text('Amount', 185, yPos, { align: 'right' })
-  
+
   yPos += 8
   setFont(pdf, 'normal', 9)
   pdf.text(receiptData.description, 20, yPos)
   pdf.text('1', 130, yPos, { align: 'right' })
   pdf.text(`Rp ${receiptData.amountReceived.toLocaleString('id-ID')}`, 155, yPos, { align: 'right' })
   pdf.text(`Rp ${receiptData.amountReceived.toLocaleString('id-ID')}`, 185, yPos, { align: 'right' })
-  
+
   yPos += 8
   pdf.line(20, yPos, 190, yPos)
   yPos += 8
-  
+
   // Totals
   pdf.text('Subtotal', 130, yPos)
   pdf.text(`Rp ${receiptData.amountReceived.toLocaleString('id-ID')}`, 185, yPos, { align: 'right' })
   yPos += 6
-  
+
   pdf.text('Total', 130, yPos)
   pdf.text(`Rp ${receiptData.amountReceived.toLocaleString('id-ID')}`, 185, yPos, { align: 'right' })
   yPos += 6
-  
+
   setFont(pdf, 'bold', 10)
   pdf.text('Amount paid', 130, yPos)
   pdf.text(`Rp ${receiptData.amountReceived.toLocaleString('id-ID')}`, 185, yPos, { align: 'right' })
-  
+
   yPos += 10
   pdf.line(20, yPos, 190, yPos)
-  
+
   // Payment history
   yPos += 15
   setFont(pdf, 'bold', 14)
   pdf.text('Payment history', 20, yPos)
-  
+
   yPos += 10
   pdf.setDrawColor(...COLORS.border)
   pdf.line(20, yPos, 190, yPos)
   yPos += 8
-  
+
   setFont(pdf, 'bold', 9)
   pdf.text('Payment method', 20, yPos)
   pdf.text('Date', 80, yPos)
   pdf.text('Amount paid', 130, yPos)
   pdf.text('Receipt number', 160, yPos)
-  
+
   yPos += 8
   setFont(pdf, 'normal', 9)
   pdf.text(receiptData.paymentMethod, 20, yPos)
   pdf.text(new Date(receiptData.paymentDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), 80, yPos)
   pdf.text(`Rp ${receiptData.amountReceived.toLocaleString('id-ID')}`, 130, yPos)
   pdf.text(receiptData.receiptNumber, 160, yPos)
-  
+
   // Move to bottom for signature
   yPos = 250
-  
+
   // QR Signature
   await addQRSignature(pdf, receiptData, yPos)
-  
+
   // Footer
   yPos = 285
   setFont(pdf, 'normal', 8)
   pdf.setTextColor(...COLORS.secondary)
   pdf.text('To learn more about or to discuss your invoice, please visit luksurireka.com/help', 20, yPos)
-  
+
   pdf.save(`Receipt-${receiptData.receiptNumber}.pdf`)
 }

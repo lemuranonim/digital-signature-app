@@ -18,11 +18,11 @@ export default function SignaturePad({ onSignatureChange }) {
     const canvas = canvasRef.current
     if (canvas) {
       const ctx = canvas.getContext('2d')
-      
+
       // Set canvas size
       canvas.width = canvas.offsetWidth
       canvas.height = 200
-      
+
       // Set drawing style
       ctx.strokeStyle = '#1f2937'
       ctx.lineWidth = 3
@@ -44,7 +44,7 @@ export default function SignaturePad({ onSignatureChange }) {
       const encodedData = encodeURIComponent(data)
       const size = 200
       const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodedData}&format=PNG&margin=10&bgcolor=ffffff&color=000000`
-      
+
       return qrUrl
     } catch (error) {
       console.error('Error generating QR code:', error)
@@ -59,27 +59,27 @@ export default function SignaturePad({ onSignatureChange }) {
     const size = 200
     canvas.width = size
     canvas.height = size
-    
+
     // White background
     ctx.fillStyle = 'white'
     ctx.fillRect(0, 0, size, size)
-    
+
     // Black modules
     ctx.fillStyle = 'black'
     const moduleSize = size / 25
-    
+
     // Generate a simple pattern based on the text
     const textHash = text.split('').reduce((a, b) => {
       a = ((a << 5) - a) + b.charCodeAt(0)
       return a & a
     }, 0)
-    
+
     for (let x = 0; x < 25; x++) {
       for (let y = 0; y < 25; y++) {
         // Position detection patterns (corners)
         if ((x < 7 && y < 7) || (x > 17 && y < 7) || (x < 7 && y > 17)) {
-          if ((x === 0 || x === 6 || y === 0 || y === 6) || 
-              (x >= 2 && x <= 4 && y >= 2 && y <= 4)) {
+          if ((x === 0 || x === 6 || y === 0 || y === 6) ||
+            (x >= 2 && x <= 4 && y >= 2 && y <= 4)) {
             ctx.fillRect(x * moduleSize, y * moduleSize, moduleSize, moduleSize)
           }
         } else {
@@ -90,16 +90,16 @@ export default function SignaturePad({ onSignatureChange }) {
         }
       }
     }
-    
+
     return canvas.toDataURL('image/png')
   }
 
   const generateQRCode = async () => {
     const docId = generateDocumentId()
     setDocumentId(docId)
-    
+
     // Create validation URL with document data
-    const baseUrl = `https://digital-signature-app-theta.vercel.app/validate/${docId}`
+    const baseUrl = `https://sign.luksurireka.com/validate/${docId}`
     const qrData = JSON.stringify({
       documentId: docId,
       validationUrl: baseUrl,
@@ -109,13 +109,13 @@ export default function SignaturePad({ onSignatureChange }) {
       company: 'PT LUKSURI REKA DIGITAL SOLUTIONS',
       type: 'digital_signature_validation'
     })
-    
+
     setValidationUrl(baseUrl)
-    
+
     try {
       // Try to generate real QR code first
       const realQRUrl = await generateRealQRCode(baseUrl)
-      
+
       if (realQRUrl) {
         setQrCodeData(realQRUrl)
         console.log('Real QR code generated successfully')
@@ -125,10 +125,10 @@ export default function SignaturePad({ onSignatureChange }) {
         setQrCodeData(canvasQR)
         console.log('Fallback QR code generated')
       }
-      
+
       setQrCodeGenerated(true)
       setHasSignature(true)
-      
+
       // Pass QR signature data to parent with complete metadata
       onSignatureChange(qrCodeData || realQRUrl, {
         type: 'qr',
@@ -139,7 +139,7 @@ export default function SignaturePad({ onSignatureChange }) {
         timestamp: new Date().toISOString(),
         qrData: qrData
       })
-      
+
     } catch (error) {
       console.error('Error in QR generation process:', error)
       // Use fallback method
@@ -147,7 +147,7 @@ export default function SignaturePad({ onSignatureChange }) {
       setQrCodeData(fallbackQR)
       setQrCodeGenerated(true)
       setHasSignature(true)
-      
+
       onSignatureChange(fallbackQR, {
         type: 'qr',
         documentId: docId,
@@ -165,7 +165,7 @@ export default function SignaturePad({ onSignatureChange }) {
     const canvas = canvasRef.current
     const rect = canvas.getBoundingClientRect()
     const ctx = canvas.getContext('2d')
-    
+
     ctx.beginPath()
     ctx.moveTo(
       e.clientX - rect.left,
@@ -175,11 +175,11 @@ export default function SignaturePad({ onSignatureChange }) {
 
   const draw = (e) => {
     if (!isDrawing) return
-    
+
     const canvas = canvasRef.current
     const rect = canvas.getBoundingClientRect()
     const ctx = canvas.getContext('2d')
-    
+
     ctx.lineTo(
       e.clientX - rect.left,
       e.clientY - rect.top
@@ -193,7 +193,7 @@ export default function SignaturePad({ onSignatureChange }) {
       setIsDrawing(false)
       const canvas = canvasRef.current
       const signatureData = canvas.toDataURL()
-      
+
       // Pass manual signature data with metadata
       onSignatureChange(signatureData, {
         type: 'manual',
@@ -212,13 +212,13 @@ export default function SignaturePad({ onSignatureChange }) {
       const ctx = canvas.getContext('2d')
       ctx.clearRect(0, 0, canvas.width, canvas.height)
     }
-    
+
     setHasSignature(false)
     setQrCodeGenerated(false)
     setDocumentId('')
     setQrCodeData('')
     setValidationUrl('')
-    
+
     // Clear signature with metadata
     onSignatureChange('', {
       type: signatureType,
@@ -251,11 +251,10 @@ export default function SignaturePad({ onSignatureChange }) {
               setSignatureType('manual')
               clearSignature()
             }}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-xl font-semibold transition-all duration-200 ${
-              signatureType === 'manual'
+            className={`flex items-center space-x-2 px-4 py-2 rounded-xl font-semibold transition-all duration-200 ${signatureType === 'manual'
                 ? 'bg-blue-500 text-white shadow-lg'
                 : 'bg-white text-gray-600 hover:bg-gray-100'
-            }`}
+              }`}
           >
             <PenTool className="w-4 h-4" />
             <span>Manual Signature</span>
@@ -266,11 +265,10 @@ export default function SignaturePad({ onSignatureChange }) {
               setSignatureType('qr')
               clearSignature()
             }}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-xl font-semibold transition-all duration-200 ${
-              signatureType === 'qr'
+            className={`flex items-center space-x-2 px-4 py-2 rounded-xl font-semibold transition-all duration-200 ${signatureType === 'qr'
                 ? 'bg-green-500 text-white shadow-lg'
                 : 'bg-white text-gray-600 hover:bg-gray-100'
-            }`}
+              }`}
           >
             <QrCode className="w-4 h-4" />
             <span>QR Digital Signature</span>
@@ -326,13 +324,13 @@ export default function SignaturePad({ onSignatureChange }) {
                   <Check className="w-6 h-6 text-green-600" />
                   <h4 className="text-lg font-bold text-green-800">Scannable QR Digital Signature Generated</h4>
                 </div>
-                
+
                 {/* QR Code Display */}
                 <div className="flex justify-center">
                   <div className="p-6 bg-white border-2 border-gray-200 shadow-lg rounded-3xl">
-                    <img 
-                      src={qrCodeData} 
-                      alt="Scannable QR Code Digital Signature" 
+                    <img
+                      src={qrCodeData}
+                      alt="Scannable QR Code Digital Signature"
                       className="w-48 h-48 mx-auto"
                       style={{ imageRendering: 'pixelated' }}
                     />
@@ -341,7 +339,7 @@ export default function SignaturePad({ onSignatureChange }) {
                     </p>
                   </div>
                 </div>
-                
+
                 {/* Test QR Code Section */}
                 <div className="p-4 border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl">
                   <div className="flex items-center justify-between">
@@ -359,7 +357,7 @@ export default function SignaturePad({ onSignatureChange }) {
                     </button>
                   </div>
                 </div>
-                
+
                 {/* Signature Details */}
                 <div className="p-6 text-left bg-gray-50 rounded-2xl">
                   <h5 className="mb-4 font-bold text-gray-900">Digital Signature Details:</h5>
@@ -386,7 +384,7 @@ export default function SignaturePad({ onSignatureChange }) {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Validation URL */}
                 <div className="p-4 bg-blue-50 rounded-2xl">
                   <div className="flex items-center justify-between">
@@ -410,7 +408,7 @@ export default function SignaturePad({ onSignatureChange }) {
                 <div className="p-4 bg-amber-50 rounded-2xl">
                   <h5 className="mb-2 text-sm font-bold text-amber-900">PDF Integration:</h5>
                   <p className="text-xs text-amber-700">
-                    This scannable QR code will be automatically embedded in your generated PDF document. 
+                    This scannable QR code will be automatically embedded in your generated PDF document.
                     Anyone can scan it to verify the digital signature authenticity.
                   </p>
                 </div>
@@ -419,7 +417,7 @@ export default function SignaturePad({ onSignatureChange }) {
           )}
         </div>
       )}
-      
+
       {/* Status and Actions */}
       <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
         <div className="flex items-center space-x-2">
@@ -427,15 +425,15 @@ export default function SignaturePad({ onSignatureChange }) {
             <Check className="w-5 h-5 text-green-600" />
           )}
           <p className="text-sm font-semibold text-gray-700">
-            {hasSignature 
-              ? signatureType === 'qr' 
-                ? 'Scannable QR Digital Signature Ready for PDF' 
+            {hasSignature
+              ? signatureType === 'qr'
+                ? 'Scannable QR Digital Signature Ready for PDF'
                 : 'Manual Signature Captured'
               : 'No Signature Added'
             }
           </p>
         </div>
-        
+
         {hasSignature && (
           <button
             type="button"
@@ -447,7 +445,7 @@ export default function SignaturePad({ onSignatureChange }) {
           </button>
         )}
       </div>
-      
+
       {/* Security Notice */}
       <div className="p-4 border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl">
         <div className="flex items-start space-x-3">
@@ -455,9 +453,9 @@ export default function SignaturePad({ onSignatureChange }) {
           <div className="text-sm">
             <p className="mb-1 font-semibold text-blue-900">Enhanced Security Notice</p>
             <p className="text-blue-700">
-              QR Digital Signatures provide enhanced security and verification. 
-              The generated QR code is fully scannable and will redirect to a validation page 
-              that confirms document authenticity and authorization by LUDTANZA SURYA WIJAYA, S.Pd. 
+              QR Digital Signatures provide enhanced security and verification.
+              The generated QR code is fully scannable and will redirect to a validation page
+              that confirms document authenticity and authorization by LUDTANZA SURYA WIJAYA, S.Pd.
               as company director. The QR code will be embedded directly in your PDF document.
             </p>
           </div>
