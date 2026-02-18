@@ -1,7 +1,7 @@
 // app/login/page.js
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useRouter } from 'next/navigation'
 import { LogIn, Shield } from 'lucide-react'
@@ -13,6 +13,16 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const router = useRouter()
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        router.replace('/admin')
+      }
+    }
+    checkSession()
+  }, [router])
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -39,7 +49,18 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/80 to-indigo-100/60">
+    <div className="relative flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/80 to-indigo-100/60">
+      {/* Back Button */}
+      <button
+        onClick={() => router.push('/')}
+        className="absolute top-6 left-6 flex items-center px-4 py-2 space-x-2 text-sm font-semibold text-gray-600 transition-all duration-200 bg-white/50 backdrop-blur-sm border border-gray-200/50 rounded-xl hover:bg-white hover:text-blue-600 hover:shadow-md"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        <span>Back to Home</span>
+      </button>
+
       <div className="w-full max-w-md p-8 m-4 space-y-8 bg-white/90 backdrop-blur-sm border border-gray-200/50 shadow-2xl rounded-3xl">
 
         {/* Header */}
