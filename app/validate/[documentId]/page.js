@@ -170,7 +170,7 @@ export default function DocumentValidationPage({ params }) {
           amount: `Rp ${foundDocument.total_amount?.toLocaleString('id-ID') || '0'}`,
           issueDate: new Date(foundDocument.issue_date).toLocaleDateString('id-ID'),
           signedBy: foundDocument.qr_signed_by || 'LUDTANZA SURYA WIJAYA, S.Pd.',
-          signerTitle: foundDocument.qr_signer_title || 'Direktur',
+          signerTitle: foundDocument.qr_signer_title || 'Chief Executive Officer (CEO)',
           company: 'PT LUKSURI REKA DIGITAL SOLUTIONS',
           signatureTimestamp: foundDocument.qr_timestamp
             ? new Date(foundDocument.qr_timestamp).toLocaleString('id-ID')
@@ -199,7 +199,7 @@ export default function DocumentValidationPage({ params }) {
           amount: `Rp ${foundDocument.amount_received?.toLocaleString('id-ID') || '0'}`,
           issueDate: new Date(foundDocument.payment_date).toLocaleDateString('id-ID'),
           signedBy: foundDocument.qr_signed_by || 'LUDTANZA SURYA WIJAYA, S.Pd.',
-          signerTitle: foundDocument.qr_signer_title || 'Direktur',
+          signerTitle: foundDocument.qr_signer_title || 'Chief Executive Officer (CEO)',
           company: 'PT LUKSURI REKA DIGITAL SOLUTIONS',
           signatureTimestamp: foundDocument.qr_timestamp
             ? new Date(foundDocument.qr_timestamp).toLocaleString('id-ID')
@@ -303,16 +303,16 @@ export default function DocumentValidationPage({ params }) {
         {/* Validation Status Card - Hero */}
         <div className="mb-10 transform transition-all hover:scale-[1.01] duration-300">
           <div className={`relative overflow-hidden rounded-3xl shadow-2xl border ${validationStatus === 'valid'
-              ? 'bg-white border-emerald-100'
-              : validationStatus === 'invalid' || validationStatus === 'expired'
-                ? 'bg-white border-rose-100'
-                : 'bg-white border-amber-100'
+            ? 'bg-white border-emerald-100'
+            : validationStatus === 'invalid' || validationStatus === 'expired'
+              ? 'bg-white border-rose-100'
+              : 'bg-white border-amber-100'
             }`}>
 
             {/* Status Indicator Banner */}
             <div className={`h-2 w-full ${validationStatus === 'valid' ? 'bg-gradient-to-r from-emerald-400 to-teal-500' :
-                validationStatus === 'invalid' || validationStatus === 'expired' ? 'bg-gradient-to-r from-rose-500 to-red-600' :
-                  'bg-gradient-to-r from-amber-400 to-orange-500'
+              validationStatus === 'invalid' || validationStatus === 'expired' ? 'bg-gradient-to-r from-rose-500 to-red-600' :
+                'bg-gradient-to-r from-amber-400 to-orange-500'
               }`}></div>
 
             <div className="p-8 md:p-12 text-center relative">
@@ -325,10 +325,10 @@ export default function DocumentValidationPage({ params }) {
 
               <div className="relative z-10 flex flex-col items-center">
                 <div className={`inline-flex items-center justify-center w-24 h-24 rounded-full mb-6 ring-8 ${validationStatus === 'valid'
-                    ? 'bg-emerald-50 text-emerald-600 ring-emerald-50'
-                    : validationStatus === 'invalid' || validationStatus === 'expired'
-                      ? 'bg-rose-50 text-rose-600 ring-rose-50'
-                      : 'bg-amber-50 text-amber-600 ring-amber-50'
+                  ? 'bg-emerald-50 text-emerald-600 ring-emerald-50'
+                  : validationStatus === 'invalid' || validationStatus === 'expired'
+                    ? 'bg-rose-50 text-rose-600 ring-rose-50'
+                    : 'bg-amber-50 text-amber-600 ring-amber-50'
                   }`}>
                   {validationStatus === 'valid' ? <CheckCircle className="w-12 h-12" /> :
                     validationStatus === 'invalid' || validationStatus === 'expired' ? <XCircle className="w-12 h-12" /> :
@@ -336,8 +336,8 @@ export default function DocumentValidationPage({ params }) {
                 </div>
 
                 <h2 className={`text-3xl md:text-4xl font-bold mb-4 ${validationStatus === 'valid' ? 'text-emerald-950' :
-                    validationStatus === 'invalid' || validationStatus === 'expired' ? 'text-rose-950' :
-                      'text-amber-950'
+                  validationStatus === 'invalid' || validationStatus === 'expired' ? 'text-rose-950' :
+                    'text-amber-950'
                   }`}>
                   {validationStatus === 'valid' && 'Official Document Verified'}
                   {validationStatus === 'invalid' && 'Invalid Document Signature'}
