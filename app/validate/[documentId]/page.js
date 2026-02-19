@@ -1,8 +1,23 @@
-// app/validate/[documentId]/page.js
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Shield, CheckCircle, XCircle, AlertTriangle, FileText, User, Building2, Calendar, Clock, Download, QrCode, AlertCircle } from 'lucide-react'
+import {
+  Shield,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  FileText,
+  User,
+  Building2,
+  Calendar,
+  Clock,
+  Download,
+  Share2,
+  ArrowRight,
+  ExternalLink,
+  Copy,
+  Check
+} from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 
 export default function DocumentValidationPage({ params }) {
@@ -10,6 +25,8 @@ export default function DocumentValidationPage({ params }) {
   const [documentData, setDocumentData] = useState(null)
   const [validationChecks, setValidationChecks] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [copiedId, setCopiedId] = useState(false)
+
   const { documentId } = params
 
   useEffect(() => {
@@ -235,17 +252,23 @@ export default function DocumentValidationPage({ params }) {
     URL.revokeObjectURL(url)
   }
 
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text)
+    setCopiedId(true)
+    setTimeout(() => setCopiedId(false), 2000)
+  }
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/80 to-indigo-100/60">
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="relative w-20 h-20 mx-auto mb-6">
-              <div className="absolute inset-0 border-4 border-blue-200 rounded-full"></div>
-              <div className="absolute inset-0 border-4 border-transparent rounded-full border-t-blue-600 animate-spin"></div>
-            </div>
-            <h3 className="mb-2 text-xl font-semibold text-gray-700">Validating Document</h3>
-            <p className="text-gray-500">Verifying digital signature authenticity...</p>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="relative w-20 h-20 mx-auto">
+            <div className="absolute inset-0 border-4 border-slate-200 rounded-full"></div>
+            <div className="absolute inset-0 border-4 border-transparent rounded-full border-t-indigo-600 animate-spin"></div>
+          </div>
+          <div>
+            <h3 className="text-xl font-bold text-slate-800">Validating...</h3>
+            <p className="text-slate-500 text-sm">Verifying digital signature integrity</p>
           </div>
         </div>
       </div>
@@ -253,360 +276,283 @@ export default function DocumentValidationPage({ params }) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/80 to-indigo-100/60">
-      {/* Header */}
-      <div className="border-b shadow-lg bg-white/80 backdrop-blur-xl border-white/20">
-        <div className="max-w-4xl px-4 py-6 mx-auto">
-          <div className="flex items-center space-x-3">
-            <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl">
-              <Shield className="text-white w-7 h-7" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-transparent bg-gradient-to-r from-blue-600 via-blue-700 to-purple-600 bg-clip-text">
-                Document Validation Portal
-              </h1>
-              <p className="text-gray-600">PT LUKSURI REKA DIGITAL SOLUTIONS</p>
-            </div>
-          </div>
-        </div>
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-900">
+
+      {/* Background Decoration */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        <div className="absolute -top-[20%] -right-[10%] w-[50%] h-[50%] bg-indigo-500/5 rounded-full blur-3xl"></div>
+        <div className="absolute top-[20%] -left-[10%] w-[40%] h-[40%] bg-blue-500/5 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-[10%] left-[20%] w-[30%] h-[30%] bg-emerald-500/5 rounded-full blur-3xl"></div>
       </div>
 
-      <div className="max-w-4xl px-4 py-8 mx-auto space-y-8">
-        {/* Validation Status */}
-        <div className={`relative overflow-hidden rounded-3xl ${validationStatus === 'valid'
-            ? 'bg-gradient-to-br from-green-600 via-emerald-700 to-teal-800'
-            : validationStatus === 'invalid' || validationStatus === 'expired'
-              ? 'bg-gradient-to-br from-red-600 via-rose-700 to-pink-800'
-              : 'bg-gradient-to-br from-amber-600 via-orange-700 to-red-800'
-          }`}>
-          <div className="absolute inset-0 bg-black/10"></div>
-          <div className="relative p-8">
-            <div className="text-center">
-              <div className="flex items-center justify-center w-20 h-20 mx-auto mb-4 bg-white/20 backdrop-blur-sm rounded-3xl">
-                {validationStatus === 'valid' && <CheckCircle className="w-12 h-12 text-white" />}
-                {(validationStatus === 'invalid' || validationStatus === 'expired') && <XCircle className="w-12 h-12 text-white" />}
-                {validationStatus === 'not_found' && <AlertTriangle className="w-12 h-12 text-white" />}
+      <main className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-20">
+
+        {/* Header Branding */}
+        <div className="text-center mb-12 animate-fade-in-down">
+          <div className="inline-flex items-center justify-center p-3 mb-6 bg-white rounded-2xl shadow-sm border border-slate-100">
+            <Shield className="w-8 h-8 text-indigo-600" />
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 mb-3">
+            Document Validation Portal
+          </h1>
+          <p className="text-lg text-slate-500 max-w-2xl mx-auto">
+            PT LUKSURI REKA DIGITAL SOLUTIONS
+          </p>
+        </div>
+
+        {/* Validation Status Card - Hero */}
+        <div className="mb-10 transform transition-all hover:scale-[1.01] duration-300">
+          <div className={`relative overflow-hidden rounded-3xl shadow-2xl border ${validationStatus === 'valid'
+              ? 'bg-white border-emerald-100'
+              : validationStatus === 'invalid' || validationStatus === 'expired'
+                ? 'bg-white border-rose-100'
+                : 'bg-white border-amber-100'
+            }`}>
+
+            {/* Status Indicator Banner */}
+            <div className={`h-2 w-full ${validationStatus === 'valid' ? 'bg-gradient-to-r from-emerald-400 to-teal-500' :
+                validationStatus === 'invalid' || validationStatus === 'expired' ? 'bg-gradient-to-r from-rose-500 to-red-600' :
+                  'bg-gradient-to-r from-amber-400 to-orange-500'
+              }`}></div>
+
+            <div className="p-8 md:p-12 text-center relative">
+              {/* Background Status Icon overlay */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[0.03] pointer-events-none">
+                {validationStatus === 'valid' && <CheckCircle className="w-96 h-96 text-emerald-900" />}
+                {(validationStatus === 'invalid' || validationStatus === 'expired') && <XCircle className="w-96 h-96 text-rose-900" />}
+                {validationStatus === 'not_found' && <AlertTriangle className="w-96 h-96 text-amber-900" />}
               </div>
 
-              <h2 className="mb-2 text-3xl font-bold text-white">
-                {validationStatus === 'valid' && 'Document Verified'}
-                {validationStatus === 'invalid' && 'Invalid Document'}
-                {validationStatus === 'expired' && 'Document Expired'}
-                {validationStatus === 'not_found' && 'Document Not Found'}
-              </h2>
+              <div className="relative z-10 flex flex-col items-center">
+                <div className={`inline-flex items-center justify-center w-24 h-24 rounded-full mb-6 ring-8 ${validationStatus === 'valid'
+                    ? 'bg-emerald-50 text-emerald-600 ring-emerald-50'
+                    : validationStatus === 'invalid' || validationStatus === 'expired'
+                      ? 'bg-rose-50 text-rose-600 ring-rose-50'
+                      : 'bg-amber-50 text-amber-600 ring-amber-50'
+                  }`}>
+                  {validationStatus === 'valid' ? <CheckCircle className="w-12 h-12" /> :
+                    validationStatus === 'invalid' || validationStatus === 'expired' ? <XCircle className="w-12 h-12" /> :
+                      <AlertTriangle className="w-12 h-12" />}
+                </div>
 
-              <p className="text-lg text-white/90">
-                {validationStatus === 'valid' && 'This document has been verified and contains a valid digital signature.'}
-                {validationStatus === 'invalid' && 'This document could not be verified or contains an invalid signature.'}
-                {validationStatus === 'expired' && 'This document verification has expired. Please contact the issuer.'}
-                {validationStatus === 'not_found' && 'The requested document could not be found in our validation system.'}
-              </p>
+                <h2 className={`text-3xl md:text-4xl font-bold mb-4 ${validationStatus === 'valid' ? 'text-emerald-950' :
+                    validationStatus === 'invalid' || validationStatus === 'expired' ? 'text-rose-950' :
+                      'text-amber-950'
+                  }`}>
+                  {validationStatus === 'valid' && 'Official Document Verified'}
+                  {validationStatus === 'invalid' && 'Invalid Document Signature'}
+                  {validationStatus === 'expired' && 'Document Verification Expired'}
+                  {validationStatus === 'not_found' && 'Document Not Found'}
+                </h2>
+
+                <p className="text-lg md:text-xl text-slate-600 max-w-2xl">
+                  {validationStatus === 'valid' && 'This document has been cryptographically verified and confirmed authentic by our secure digital ledger.'}
+                  {validationStatus === 'invalid' && 'We could not verify the authenticity of this document. The signature may have been tampered with.'}
+                  {validationStatus === 'expired' && 'This document\'s digital signature certification has expired and is no longer valid.'}
+                  {validationStatus === 'not_found' && 'The unique identifier provided does not match any record in our validation system.'}
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Document Details (only show if valid) */}
+        {/* DETAILS GRID - Only Show if Valid */}
         {validationStatus === 'valid' && documentData && (
-          <div className="overflow-hidden border shadow-2xl bg-white/90 backdrop-blur-sm rounded-3xl border-gray-200/50">
-            <div className="p-8 border-b border-gray-100">
-              <div className="flex items-center space-x-3">
-                <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl">
-                  <FileText className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900">Document Information</h3>
-                  <p className="text-gray-600">Verified document details and signature information</p>
-                </div>
-              </div>
-            </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10 animate-fade-in-up">
 
-            <div className="p-8">
-              <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-                {/* Document Details */}
-                <div className="space-y-6">
-                  <div>
-                    <h4 className="mb-4 text-lg font-bold text-gray-900">Document Details</h4>
-                    <div className="space-y-4">
-                      <div className="flex items-start justify-between">
-                        <span className="font-medium text-gray-600">Document Type:</span>
-                        <span className="font-bold text-gray-900">{documentData.type}</span>
-                      </div>
-                      <div className="flex items-start justify-between">
-                        <span className="font-medium text-gray-600">Document Number:</span>
-                        <span className="font-bold text-gray-900">{documentData.number}</span>
-                      </div>
-                      <div className="flex items-start justify-between">
-                        <span className="font-medium text-gray-600">
-                          {documentData.type === 'Invoice' ? 'Client:' : 'Payer:'}
-                        </span>
-                        <span className="font-bold text-gray-900">{documentData.clientName}</span>
-                      </div>
-                      <div className="flex items-start justify-between">
-                        <span className="font-medium text-gray-600">Amount:</span>
-                        <span className="font-bold text-gray-900">{documentData.amount}</span>
-                      </div>
-                      <div className="flex items-start justify-between">
-                        <span className="font-medium text-gray-600">
-                          {documentData.type === 'Invoice' ? 'Issue Date:' : 'Payment Date:'}
-                        </span>
-                        <span className="font-bold text-gray-900">{documentData.issueDate}</span>
-                      </div>
+            {/* Left Column: Document Info */}
+            <div className="lg:col-span-2 space-y-8">
 
-                      {/* Additional Invoice Details */}
-                      {documentData.type === 'Invoice' && (
-                        <>
-                          {documentData.dueDate && (
-                            <div className="flex items-start justify-between">
-                              <span className="font-medium text-gray-600">Due Date:</span>
-                              <span className="font-bold text-gray-900">{documentData.dueDate}</span>
-                            </div>
-                          )}
-                          {documentData.clientEmail && (
-                            <div className="flex items-start justify-between">
-                              <span className="font-medium text-gray-600">Client Email:</span>
-                              <span className="font-bold text-gray-900">{documentData.clientEmail}</span>
-                            </div>
-                          )}
-                          <div className="flex items-start justify-between">
-                            <span className="font-medium text-gray-600">Status:</span>
-                            <span className={`px-2 py-1 rounded-full text-xs font-bold ${documentData.status === 'paid' ? 'bg-green-100 text-green-800' :
-                                documentData.status === 'issued' ? 'bg-blue-100 text-blue-800' :
-                                  'bg-gray-100 text-gray-800'
-                              }`}>
-                              {documentData.status === 'paid' ? 'Lunas' :
-                                documentData.status === 'issued' ? 'Terbit' :
-                                  'Draft'}
-                            </span>
-                          </div>
-                        </>
-                      )}
-
-                      {/* Additional Receipt Details */}
-                      {documentData.type === 'Receipt' && (
-                        <>
-                          {documentData.paymentMethod && (
-                            <div className="flex items-start justify-between">
-                              <span className="font-medium text-gray-600">Payment Method:</span>
-                              <span className="font-bold text-gray-900">{documentData.paymentMethod}</span>
-                            </div>
-                          )}
-                          {documentData.description && (
-                            <div className="flex items-start justify-between">
-                              <span className="font-medium text-gray-600">Description:</span>
-                              <span className="font-bold text-gray-900">{documentData.description}</span>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
+              {/* Main Info Card */}
+              <div className="bg-white rounded-3xl shadow-lg border border-slate-100 overflow-hidden">
+                <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                  <div className="flex items-center space-x-3">
+                    <FileText className="w-5 h-5 text-indigo-500" />
+                    <h3 className="font-semibold text-slate-800">Document Specifications</h3>
                   </div>
+                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700 uppercase tracking-wide">
+                    {documentData.type}
+                  </span>
                 </div>
 
-                {/* Signature Details */}
-                <div className="space-y-6">
-                  <div>
-                    <h4 className="mb-4 text-lg font-bold text-gray-900">Digital Signature</h4>
-                    <div className="space-y-4">
-                      <div className="flex items-start justify-between">
-                        <span className="font-medium text-gray-600">Signed By:</span>
-                        <span className="font-bold text-gray-900">{documentData.signedBy}</span>
+                <div className="p-6 md:p-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-12">
+                    {/* Data Groups */}
+                    <div className="group">
+                      <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Reference Number</label>
+                      <p className="text-lg font-bold text-slate-900">{documentData.number}</p>
+                    </div>
+
+                    <div className="group">
+                      <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                        {documentData.type === 'Invoice' ? 'Issued To' : 'Payer Name'}
+                      </label>
+                      <p className="text-lg font-bold text-slate-900">{documentData.clientName}</p>
+                    </div>
+
+                    <div className="group">
+                      <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Total Amount</label>
+                      <p className="text-2xl font-bold text-slate-900 tracking-tight">{documentData.amount}</p>
+                    </div>
+
+                    <div className="group">
+                      <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                        {documentData.type === 'Invoice' ? 'Date Issued' : 'Payment Date'}
+                      </label>
+                      <p className="text-lg font-medium text-slate-700">{documentData.issueDate}</p>
+                    </div>
+
+                    {(documentData.dueDate || documentData.paymentMethod) && (
+                      <div className="group">
+                        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                          {documentData.type === 'Invoice' ? 'Due Date' : 'Payment Method'}
+                        </label>
+                        <p className="text-lg font-medium text-slate-700">
+                          {documentData.type === 'Invoice' ? documentData.dueDate : documentData.paymentMethod}
+                        </p>
                       </div>
-                      <div className="flex items-start justify-between">
-                        <span className="font-medium text-gray-600">Title:</span>
-                        <span className="font-bold text-gray-900">{documentData.signerTitle}</span>
-                      </div>
-                      <div className="flex items-start justify-between">
-                        <span className="font-medium text-gray-600">Company:</span>
-                        <span className="font-bold text-gray-900">{documentData.company}</span>
-                      </div>
-                      <div className="flex items-start justify-between">
-                        <span className="font-medium text-gray-600">Signed At:</span>
-                        <span className="font-bold text-gray-900">{documentData.signatureTimestamp}</span>
-                      </div>
-                      <div className="flex items-start justify-between">
-                        <span className="font-medium text-gray-600">Document ID:</span>
-                        <span className="font-mono text-xs text-gray-900 break-all">{documentData.id}</span>
+                    )}
+
+                    <div className="group md:col-span-2">
+                      <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Document ID & Hash</label>
+                      <div className="flex items-center space-x-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                        <code className="text-xs text-slate-500 font-mono flex-1 break-all line-clamp-1">
+                          {documentData.id}
+                        </code>
+                        <button
+                          onClick={() => copyToClipboard(documentData.id)}
+                          className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-400 hover:text-indigo-600 transition-colors"
+                          title="Copy ID"
+                        >
+                          {copiedId ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                        </button>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Invoice Items (for Invoice only) */}
+              {/* Items Table (Invoice Only) - Cleaned Up */}
               {documentData.type === 'Invoice' && documentData.items && documentData.items.length > 0 && (
-                <div className="pt-8 mt-8 border-t border-gray-200">
-                  <h4 className="mb-4 text-lg font-bold text-gray-900">Invoice Items</h4>
+                <div className="bg-white rounded-3xl shadow-lg border border-slate-100 overflow-hidden">
+                  <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+                    <h3 className="font-semibold text-slate-800">Itemized Details</h3>
+                  </div>
                   <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-50">
+                    <table className="w-full text-sm text-left">
+                      <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 border-b border-slate-100">
                         <tr>
-                          <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-gray-600 uppercase">Description</th>
-                          <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-gray-600 uppercase">Qty</th>
-                          <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-gray-600 uppercase">Unit Price</th>
-                          <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-gray-600 uppercase">Total</th>
+                          <th className="px-6 py-4 font-semibold">Description</th>
+                          <th className="px-6 py-4 font-semibold text-center">Qty</th>
+                          <th className="px-6 py-4 font-semibold text-right">Price</th>
+                          <th className="px-6 py-4 font-semibold text-right">Total</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-200">
+                      <tbody className="divide-y divide-slate-100">
                         {documentData.items.map((item, index) => (
-                          <tr key={index}>
-                            <td className="px-4 py-3 text-sm text-gray-900">{item.description}</td>
-                            <td className="px-4 py-3 text-sm text-gray-900">{item.quantity}</td>
-                            <td className="px-4 py-3 text-sm text-gray-900">Rp {item.unit_price?.toLocaleString('id-ID')}</td>
-                            <td className="px-4 py-3 text-sm font-bold text-gray-900">Rp {(item.quantity * item.unit_price)?.toLocaleString('id-ID')}</td>
+                          <tr key={index} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="px-6 py-4 font-medium text-slate-900">{item.description}</td>
+                            <td className="px-6 py-4 text-center text-slate-600">{item.quantity}</td>
+                            <td className="px-6 py-4 text-right text-slate-600">Rp {item.unit_price?.toLocaleString('id-ID')}</td>
+                            <td className="px-6 py-4 text-right font-bold text-slate-900">Rp {(item.quantity * item.unit_price)?.toLocaleString('id-ID')}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
+                </div>
+              )}
 
-                  {/* Invoice Totals */}
-                  <div className="p-4 mt-6 bg-gray-50 rounded-2xl">
-                    <div className="flex justify-end">
-                      <div className="w-64 space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Subtotal:</span>
-                          <span className="font-bold">Rp {documentData.subtotal?.toLocaleString('id-ID')}</span>
-                        </div>
-                        {documentData.discountAmount > 0 && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Discount:</span>
-                            <span className="font-bold text-red-600">- Rp {documentData.discountAmount?.toLocaleString('id-ID')}</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Tax:</span>
-                          <span className="font-bold">Rp {documentData.taxAmount?.toLocaleString('id-ID')}</span>
-                        </div>
-                        <div className="flex justify-between pt-2 border-t border-gray-300">
-                          <span className="text-lg font-bold">Total:</span>
-                          <span className="text-lg font-bold text-blue-600">{documentData.amount}</span>
-                        </div>
+            </div>
+
+            {/* Right Column: Signature & Security */}
+            <div className="space-y-8">
+
+              {/* Digital Signature Card */}
+              <div className="bg-slate-900 text-white rounded-3xl shadow-xl overflow-hidden relative">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/20 rounded-bl-full blur-2xl"></div>
+
+                <div className="p-8 relative z-10">
+                  <div className="flex items-center space-x-3 mb-6">
+                    <div className="p-2 bg-indigo-500/20 rounded-lg">
+                      <Shield className="w-6 h-6 text-indigo-300" />
+                    </div>
+                    <h3 className="text-lg font-bold">Digital Signature</h3>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div>
+                      <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Signed By</p>
+                      <p className="text-xl font-bold text-white">{documentData.signedBy}</p>
+                      <p className="text-indigo-200 text-sm">{documentData.signerTitle}</p>
+                    </div>
+
+                    <div>
+                      <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Organization</p>
+                      <div className="flex items-center space-x-2">
+                        <Building2 className="w-4 h-4 text-slate-500" />
+                        <p className="font-medium">{documentData.company}</p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Timestamp</p>
+                      <div className="flex items-center space-x-2">
+                        <Clock className="w-4 h-4 text-slate-500" />
+                        <p className="font-medium font-mono text-sm">{documentData.signatureTimestamp}</p>
+                      </div>
+                    </div>
+
+                    <div className="pt-6 mt-2 border-t border-slate-800">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-emerald-400 font-bold flex items-center bg-emerald-500/10 px-3 py-1 rounded-full">
+                          <CheckCircle className="w-3 h-3 mr-1" /> VALID
+                        </span>
+                        <span className="text-slate-500 text-xs">RSA-2048 Encryption</span>
                       </div>
                     </div>
                   </div>
                 </div>
-              )}
+              </div>
 
-              {/* Amount in Words (for Receipt only) */}
-              {documentData.type === 'Receipt' && documentData.amountWords && (
-                <div className="pt-8 mt-8 border-t border-gray-200">
-                  <h4 className="mb-4 text-lg font-bold text-gray-900">Amount in Words</h4>
-                  <div className="p-4 bg-gray-50 rounded-2xl">
-                    <p className="font-medium text-gray-900 capitalize">{documentData.amountWords}</p>
-                  </div>
-                </div>
-              )}
+              {/* Actions Card */}
+              <div className="bg-white rounded-3xl shadow-lg border border-slate-100 p-6">
+                <h3 className="font-bold text-slate-900 mb-4">Actions</h3>
+                <div className="space-y-3">
+                  <button
+                    onClick={downloadCertificate}
+                    className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition-all hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
+                  >
+                    <Download className="w-5 h-5" />
+                    <span>Save Certificate</span>
+                  </button>
 
-              {/* Notes (if available) */}
-              {documentData.notes && (
-                <div className="pt-8 mt-8 border-t border-gray-200">
-                  <h4 className="mb-4 text-lg font-bold text-gray-900">Notes</h4>
-                  <div className="p-4 bg-gray-50 rounded-2xl">
-                    <p className="text-gray-900">{documentData.notes}</p>
-                  </div>
+                  <button
+                    onClick={() => window.print()}
+                    className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl font-semibold transition-all"
+                  >
+                    <FileText className="w-5 h-5" />
+                    <span>Print Report</span>
+                  </button>
                 </div>
-              )}
+              </div>
+
             </div>
           </div>
         )}
 
-        {/* Security Information */}
-        {validationStatus === 'valid' && (
-          <div className="overflow-hidden border shadow-xl bg-white/90 backdrop-blur-sm rounded-3xl border-gray-200/50">
-            <div className="p-8 border-b border-gray-100">
-              <div className="flex items-center space-x-3">
-                <div className="p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl">
-                  <Shield className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900">Security Verification</h3>
-                  <p className="text-gray-600">Cryptographic validation and security details</p>
-                </div>
-              </div>
-            </div>
+      </main>
 
-            <div className="p-8">
-              <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-                <div className="space-y-4">
-                  <div className="flex items-center p-4 space-x-3 bg-green-50 rounded-2xl">
-                    <CheckCircle className="w-6 h-6 text-green-600" />
-                    <div>
-                      <p className="font-bold text-green-900">Digital Signature Valid</p>
-                      <p className="text-sm text-green-700">Cryptographically verified</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center p-4 space-x-3 bg-blue-50 rounded-2xl">
-                    <Shield className="w-6 h-6 text-blue-600" />
-                    <div>
-                      <p className="font-bold text-blue-900">Document Integrity</p>
-                      <p className="text-sm text-blue-700">Content unchanged since signing</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <div className="flex items-center p-4 space-x-3 bg-purple-50 rounded-2xl">
-                    <User className="w-6 h-6 text-purple-600" />
-                    <div>
-                      <p className="font-bold text-purple-900">Authority Verified</p>
-                      <p className="text-sm text-purple-700">Signer identity confirmed</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center p-4 space-x-3 bg-amber-50 rounded-2xl">
-                    <Clock className="w-6 h-6 text-amber-600" />
-                    <div>
-                      <p className="font-bold text-amber-900">Timestamp Valid</p>
-                      <p className="text-sm text-amber-700">Signing time verified</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Security Hash */}
-              <div className="p-4 mt-6 bg-gray-50 rounded-2xl">
-                <p className="mb-2 text-sm font-bold text-gray-700">Security Hash:</p>
-                <p className="font-mono text-xs text-gray-600 break-all">{documentData?.securityHash}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Actions */}
-        {validationStatus === 'valid' && (
-          <div className="p-8 border shadow-xl bg-white/90 backdrop-blur-sm rounded-3xl border-gray-200/50">
-            <h3 className="mb-6 text-lg font-bold text-gray-900">Available Actions</h3>
-            <div className="flex flex-col space-y-4 sm:flex-row sm:space-y-0 sm:space-x-4">
-              <button
-                onClick={downloadCertificate}
-                className="flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-2xl font-semibold hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5"
-              >
-                <Download className="w-5 h-5" />
-                <span>Download Validation Certificate</span>
-              </button>
-              <button
-                onClick={() => window.print()}
-                className="flex items-center justify-center px-6 py-3 space-x-2 font-semibold text-gray-700 transition-all duration-200 bg-white border-2 border-gray-300 rounded-2xl hover:bg-gray-50"
-              >
-                <FileText className="w-5 h-5" />
-                <span>Print Validation Report</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Footer */}
-        <div className="py-8 text-center">
-          <div className="flex items-center justify-center mb-4 space-x-2">
-            <Building2 className="w-5 h-5 text-gray-600" />
-            <span className="font-semibold text-gray-600">PT LUKSURI REKA DIGITAL SOLUTIONS</span>
-          </div>
-          <p className="text-sm text-gray-500">
-            Secure document validation powered by advanced cryptographic technology
-          </p>
-          <p className="mt-2 text-xs text-gray-400">
-            Validation performed at: {new Date().toLocaleString('id-ID')}
-          </p>
+      {/* Footer */}
+      <footer className="py-8 text-center border-t border-slate-200 bg-slate-50">
+        <div className="flex items-center justify-center space-x-2 mb-2">
+          <Shield className="w-4 h-4 text-slate-400" />
+          <span className="font-semibold text-slate-600 text-sm">Secured by Luksuri Reka Digital</span>
         </div>
-      </div>
+        <p className="text-xs text-slate-400">
+          Validation ID: {params.documentId} • Server Time: {new Date().toUTCString()}
+        </p>
+      </footer>
     </div>
   )
 }
