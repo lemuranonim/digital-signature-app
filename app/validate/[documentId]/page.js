@@ -7,14 +7,9 @@ import {
   XCircle,
   AlertTriangle,
   FileText,
-  User,
   Building2,
-  Calendar,
   Clock,
   Download,
-  Share2,
-  ArrowRight,
-  ExternalLink,
   Copy,
   Check
 } from 'lucide-react'
@@ -36,10 +31,8 @@ export default function DocumentValidationPage({ params }) {
   const validateDocument = async () => {
     setLoading(true)
     try {
-      // Parse documentId format: DOC-timestamp-random
-      const [prefix, timestamp, random] = documentId.split('-')
-
-      if (prefix !== 'DOC' || !timestamp || !random) {
+      // PERBAIKAN 1: Pengecekan ID yang lebih fleksibel
+      if (!documentId || !documentId.startsWith('DOC-')) {
         setValidationStatus('invalid')
         setValidationChecks({
           validFormat: false,
@@ -54,39 +47,36 @@ export default function DocumentValidationPage({ params }) {
         return
       }
 
-      // Search for document with matching QR document ID
-      // Try to find invoice first
+      // Cari di tabel Invoices
       const { data: invoices, error: invoiceError } = await supabase
         .from('invoices')
         .select(`
           *,
-          invoice_items (
-            description,
-            quantity,
-            unit_price
-          )
+          invoice_items (description, quantity, unit_price)
         `)
         .eq('qr_document_id', documentId)
         .limit(1)
 
-      if (invoiceError) {
-        console.error('Invoice search error:', invoiceError)
-      }
-
-      // Try to find receipt if no invoice found
+      // Cari di tabel Receipts
       let receipts = []
       if (!invoices || invoices.length === 0) {
-        const { data: receiptData, error: receiptError } = await supabase
+        const { data: receiptData } = await supabase
           .from('receipts')
           .select('*')
           .eq('qr_document_id', documentId)
           .limit(1)
+        receipts = receiptData || []
+      }
 
-        if (receiptError) {
-          console.error('Receipt search error:', receiptError)
-        } else {
-          receipts = receiptData || []
-        }
+      // PERBAIKAN 2: Cari di tabel general_documents
+      let generalDocs = []
+      if ((!invoices || invoices.length === 0) && (!receipts || receipts.length === 0)) {
+        const { data: genData } = await supabase
+          .from('general_documents')
+          .select('*')
+          .eq('qr_document_id', documentId)
+          .limit(1)
+        generalDocs = genData || []
       }
 
       let foundDocument = null
@@ -98,6 +88,9 @@ export default function DocumentValidationPage({ params }) {
       } else if (receipts && receipts.length > 0) {
         foundDocument = receipts[0]
         documentType = 'receipt'
+      } else if (generalDocs && generalDocs.length > 0) {
+        foundDocument = generalDocs[0]
+        documentType = 'general'
       }
 
       if (!foundDocument) {
@@ -115,7 +108,7 @@ export default function DocumentValidationPage({ params }) {
         return
       }
 
-      // Enhanced validation checks
+      // Pengecekan Keaslian
       const expectedUrl = `https://sign.luksurireka.com/validate/${documentId}`
 
       const checks = {
@@ -125,11 +118,10 @@ export default function DocumentValidationPage({ params }) {
         hasDocumentId: foundDocument.qr_document_id === documentId,
         hasSignerInfo: !!(foundDocument.qr_signed_by || 'LUDTANZA SURYA WIJAYA, S.Pd.'),
         hasTimestamp: !!(foundDocument.qr_timestamp || foundDocument.created_at),
-        isNotExpired: true // Will be checked below
+        isNotExpired: true
       }
 
-      // Check signature expiry (optional - set to 0 to disable expiry)
-      const SIGNATURE_VALIDITY_DAYS = 365 // 1 year validity (set to 0 to disable)
+      const SIGNATURE_VALIDITY_DAYS = 365
 
       if (SIGNATURE_VALIDITY_DAYS > 0 && checks.hasTimestamp) {
         const signatureTimestamp = new Date(foundDocument.qr_timestamp || foundDocument.created_at)
@@ -146,19 +138,17 @@ export default function DocumentValidationPage({ params }) {
         }
       }
 
-      // Check if all validation criteria are met
       const isValid = Object.values(checks).every(check => check === true)
 
       setValidationChecks(checks)
 
       if (!isValid) {
-        console.error('Validation failed:', checks)
         setValidationStatus('invalid')
         setLoading(false)
         return
       }
 
-      // Prepare document data based on type
+      // PERBAIKAN 3: Mapping Data untuk Dokumen Umum
       let documentData = {}
 
       if (documentType === 'invoice') {
@@ -176,21 +166,11 @@ export default function DocumentValidationPage({ params }) {
             ? new Date(foundDocument.qr_timestamp).toLocaleString('id-ID')
             : new Date(foundDocument.created_at).toLocaleString('id-ID'),
           validationUrl: foundDocument.qr_validation_url,
-          securityHash: `SHA256:${documentId.replace(/-/g, '').toUpperCase()}`,
           status: foundDocument.status || 'issued',
-          // Additional invoice data
-          clientEmail: foundDocument.client_email,
-          clientAddress: foundDocument.client_address,
-          clientPhone: foundDocument.client_phone,
-          clientTaxId: foundDocument.client_tax_id,
           dueDate: foundDocument.due_date ? new Date(foundDocument.due_date).toLocaleDateString('id-ID') : null,
-          subtotal: foundDocument.subtotal,
-          taxAmount: foundDocument.tax_amount,
-          discountAmount: foundDocument.discount_amount,
-          notes: foundDocument.notes,
           items: foundDocument.invoice_items || []
         }
-      } else {
+      } else if (documentType === 'receipt') {
         documentData = {
           id: documentId,
           type: 'Receipt',
@@ -205,13 +185,25 @@ export default function DocumentValidationPage({ params }) {
             ? new Date(foundDocument.qr_timestamp).toLocaleString('id-ID')
             : new Date(foundDocument.created_at).toLocaleString('id-ID'),
           validationUrl: foundDocument.qr_validation_url,
-          securityHash: `SHA256:${documentId.replace(/-/g, '').toUpperCase()}`,
           status: 'paid',
-          // Additional receipt data
           paymentMethod: foundDocument.payment_method,
-          description: foundDocument.description,
-          amountWords: foundDocument.amount_words,
-          invoiceReference: foundDocument.invoice_id
+        }
+      } else {
+        // Ini adalah pemetaan untuk Dokumen Umum (Surat/Proposal)
+        documentData = {
+          id: documentId,
+          type: 'Official Document',
+          title: foundDocument.title, // Judul Dokumen
+          description: foundDocument.description, // Keterangan
+          issueDate: new Date(foundDocument.document_date).toLocaleDateString('id-ID'),
+          signedBy: foundDocument.qr_signed_by || 'LUDTANZA SURYA WIJAYA, S.Pd.',
+          signerTitle: foundDocument.qr_signer_title || 'Chief Executive Officer (CEO)',
+          company: 'PT LUKSURI REKA DIGITAL SOLUTIONS',
+          signatureTimestamp: foundDocument.qr_timestamp
+            ? new Date(foundDocument.qr_timestamp).toLocaleString('id-ID')
+            : new Date(foundDocument.created_at).toLocaleString('id-ID'),
+          validationUrl: foundDocument.qr_validation_url,
+          status: foundDocument.status || 'issued',
         }
       }
 
@@ -220,22 +212,12 @@ export default function DocumentValidationPage({ params }) {
     } catch (error) {
       console.error('Validation error:', error)
       setValidationStatus('error')
-      setValidationChecks({
-        validFormat: false,
-        hasQRSignature: false,
-        hasValidationUrl: false,
-        hasDocumentId: false,
-        hasSignerInfo: false,
-        hasTimestamp: false,
-        isNotExpired: false
-      })
     } finally {
       setLoading(false)
     }
   }
 
   const downloadCertificate = () => {
-    // Simulasi download sertifikat validasi
     const certData = {
       documentId: documentData.id,
       validatedAt: new Date().toISOString(),
@@ -287,7 +269,6 @@ export default function DocumentValidationPage({ params }) {
 
       <main className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-20">
 
-        {/* Header Branding */}
         <div className="text-center mb-12 animate-fade-in-down">
           <div className="inline-flex items-center justify-center p-3 mb-6 bg-white rounded-2xl shadow-sm border border-slate-100">
             <Shield className="w-8 h-8 text-indigo-600" />
@@ -300,7 +281,6 @@ export default function DocumentValidationPage({ params }) {
           </p>
         </div>
 
-        {/* Validation Status Card - Hero */}
         <div className="mb-10 transform transition-all hover:scale-[1.01] duration-300">
           <div className={`relative overflow-hidden rounded-3xl shadow-2xl border ${validationStatus === 'valid'
             ? 'bg-white border-emerald-100'
@@ -309,14 +289,12 @@ export default function DocumentValidationPage({ params }) {
               : 'bg-white border-amber-100'
             }`}>
 
-            {/* Status Indicator Banner */}
             <div className={`h-2 w-full ${validationStatus === 'valid' ? 'bg-gradient-to-r from-emerald-400 to-teal-500' :
               validationStatus === 'invalid' || validationStatus === 'expired' ? 'bg-gradient-to-r from-rose-500 to-red-600' :
                 'bg-gradient-to-r from-amber-400 to-orange-500'
               }`}></div>
 
             <div className="p-8 md:p-12 text-center relative">
-              {/* Background Status Icon overlay */}
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[0.03] pointer-events-none">
                 {validationStatus === 'valid' && <CheckCircle className="w-96 h-96 text-emerald-900" />}
                 {(validationStatus === 'invalid' || validationStatus === 'expired') && <XCircle className="w-96 h-96 text-rose-900" />}
@@ -362,8 +340,6 @@ export default function DocumentValidationPage({ params }) {
 
             {/* Left Column: Document Info */}
             <div className="lg:col-span-2 space-y-8">
-
-              {/* Main Info Card */}
               <div className="bg-white rounded-3xl shadow-lg border border-slate-100 overflow-hidden">
                 <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                   <div className="flex items-center space-x-3">
@@ -377,31 +353,42 @@ export default function DocumentValidationPage({ params }) {
 
                 <div className="p-6 md:p-8">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-12">
-                    {/* Data Groups */}
-                    <div className="group">
-                      <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Reference Number</label>
-                      <p className="text-lg font-bold text-slate-900">{documentData.number}</p>
-                    </div>
 
+                    {/* Baris 1: Nomor Referensi & Judul */}
                     <div className="group">
                       <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                        {documentData.type === 'Invoice' ? 'Issued To' : 'Payer Name'}
+                        {documentData.type === 'Official Document' ? 'Document Title' : 'Reference Number'}
                       </label>
-                      <p className="text-lg font-bold text-slate-900">{documentData.clientName}</p>
-                    </div>
-
-                    <div className="group">
-                      <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Total Amount</label>
-                      <p className="text-2xl font-bold text-slate-900 tracking-tight">{documentData.amount}</p>
+                      <p className="text-lg font-bold text-slate-900">
+                        {documentData.type === 'Official Document' ? documentData.title : documentData.number}
+                      </p>
                     </div>
 
                     <div className="group">
                       <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                        {documentData.type === 'Invoice' ? 'Date Issued' : 'Payment Date'}
+                        {documentData.type === 'Invoice' ? 'Issued To' : documentData.type === 'Receipt' ? 'Payer Name' : 'Description'}
+                      </label>
+                      <p className="text-lg font-bold text-slate-900">
+                        {documentData.type === 'Official Document' ? (documentData.description || 'Tidak ada keterangan') : documentData.clientName}
+                      </p>
+                    </div>
+
+                    {/* Baris 2: Harga (Hanya untuk Invoice & Kwitansi) & Tanggal */}
+                    {documentData.type !== 'Official Document' && (
+                      <div className="group">
+                        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Total Amount</label>
+                        <p className="text-2xl font-bold text-slate-900 tracking-tight">{documentData.amount}</p>
+                      </div>
+                    )}
+
+                    <div className="group">
+                      <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                        {documentData.type === 'Invoice' ? 'Date Issued' : documentData.type === 'Receipt' ? 'Payment Date' : 'Document Date'}
                       </label>
                       <p className="text-lg font-medium text-slate-700">{documentData.issueDate}</p>
                     </div>
 
+                    {/* Baris 3: Info Tambahan (opsional) */}
                     {(documentData.dueDate || documentData.paymentMethod) && (
                       <div className="group">
                         <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
@@ -432,7 +419,6 @@ export default function DocumentValidationPage({ params }) {
                 </div>
               </div>
 
-              {/* Items Table (Invoice Only) - Cleaned Up */}
               {documentData.type === 'Invoice' && documentData.items && documentData.items.length > 0 && (
                 <div className="bg-white rounded-3xl shadow-lg border border-slate-100 overflow-hidden">
                   <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
@@ -467,8 +453,6 @@ export default function DocumentValidationPage({ params }) {
 
             {/* Right Column: Signature & Security */}
             <div className="space-y-8">
-
-              {/* Digital Signature Card */}
               <div className="bg-slate-900 text-white rounded-3xl shadow-xl overflow-hidden relative">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/20 rounded-bl-full blur-2xl"></div>
 
@@ -515,7 +499,6 @@ export default function DocumentValidationPage({ params }) {
                 </div>
               </div>
 
-              {/* Actions Card */}
               <div className="bg-white rounded-3xl shadow-lg border border-slate-100 p-6">
                 <h3 className="font-bold text-slate-900 mb-4">Actions</h3>
                 <div className="space-y-3">
@@ -536,14 +519,11 @@ export default function DocumentValidationPage({ params }) {
                   </button>
                 </div>
               </div>
-
             </div>
           </div>
         )}
-
       </main>
 
-      {/* Footer */}
       <footer className="py-8 text-center border-t border-slate-200 bg-slate-50">
         <div className="flex items-center justify-center space-x-2 mb-2">
           <Shield className="w-4 h-4 text-slate-400" />
