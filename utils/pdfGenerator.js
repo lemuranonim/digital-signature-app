@@ -53,7 +53,7 @@ const addQRSignature = async (pdf, signatureData, yPos) => {
 
         // Signature details - next to QR
         const signerName = signatureData.signatureMetadata?.signedBy || 'LUDTANZA SURYA WIJAYA, S.Pd.'
-        const signerTitle = signatureData.signatureMetadata?.signerTitle || 'Direktur'
+        const signerTitle = signatureData.signatureMetadata?.signerTitle || 'Chief Executive Officer'
 
         setFont(pdf, 'normal', 8)
         pdf.setTextColor(...COLORS.primary)
@@ -264,7 +264,7 @@ export const generateInvoicePDF = async (invoiceData) => {
   yPos = 290
   setFont(pdf, 'normal', 8)
   pdf.setTextColor(...COLORS.secondary)
-  pdf.text('To learn more about or to discuss your invoice, please visit luksurireka.com/help', 20, yPos)
+  pdf.text('This is a computer-generated invoice and requires no physical signature. To discuss your invoice, visit luksurireka.com/help', 20, yPos)
 
   pdf.save(`Invoice-${invoiceData.invoiceNumber}.pdf`)
 }
@@ -274,18 +274,32 @@ export const generateReceiptPDF = async (receiptData) => {
 
   let yPos = 20
 
-  // Header
+  // Header - Official Receipt (di kiri)
   setFont(pdf, 'bold', 24)
   pdf.setTextColor(...COLORS.primary)
-  pdf.text('Receipt', 20, yPos)
+  pdf.text('Official Receipt', 20, yPos + 10)
 
-  yPos += 15
+  // Add Logo (top right, sejajar dengan Header)
+  try {
+    pdf.addImage(LOGO_BASE64, 'PNG', 160, yPos, 30, 30)
+  } catch (error) {
+    console.error('Error adding logo:', error)
+  }
 
-  // Receipt details
+  yPos += 40
+
+  // Receipt details - kiri atas
   setFont(pdf, 'normal', 10)
-  pdf.text(`Invoice number  ${receiptData.receiptNumber}`, 20, yPos)
+  pdf.text(`Receipt number    ${receiptData.receiptNumber}`, 20, yPos)
   yPos += 6
-  pdf.text(`Date paid          ${new Date(receiptData.paymentDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, 20, yPos)
+  pdf.text(`Date paid            ${new Date(receiptData.paymentDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, 20, yPos)
+  yPos += 6
+  pdf.text(`Payment method   ${receiptData.paymentMethod}`, 20, yPos)
+
+  if (receiptData.invoiceData) {
+    yPos += 6
+    pdf.text(`Invoice ref           ${receiptData.invoiceData.invoice_number}`, 20, yPos)
+  }
 
   yPos += 15
 
@@ -303,23 +317,14 @@ export const generateReceiptPDF = async (receiptData) => {
   yPos += 5
   pdf.text('luksurireka@gmail.com', 20, yPos)
 
-  // Bill to
+  // Received From - kanan
   const clientY = yPos - 30
   setFont(pdf, 'bold', 11)
-  pdf.text('Bill to', 110, clientY)
+  pdf.text('Received From', 110, clientY)
 
   setFont(pdf, 'normal', 9)
   let clientYPos = clientY + 6
   pdf.text(receiptData.payerName, 110, clientYPos)
-  clientYPos += 5
-
-  if (receiptData.payerAddress) {
-    const addressLines = pdf.splitTextToSize(receiptData.payerAddress, 80)
-    addressLines.forEach(line => {
-      pdf.text(line, 110, clientYPos)
-      clientYPos += 5
-    })
-  }
 
   yPos += 25
 
@@ -329,82 +334,84 @@ export const generateReceiptPDF = async (receiptData) => {
 
   setFont(pdf, 'bold', 14)
   pdf.setTextColor(...COLORS.primary)
-  pdf.text(`Rp ${receiptData.amountReceived.toLocaleString('id-ID')} paid on ${new Date(receiptData.paymentDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, 25, yPos + 8)
+  pdf.text(`Rp ${receiptData.amountReceived.toLocaleString('id-ID')} IDR Paid`, 25, yPos + 8)
 
   yPos += 20
 
-  // Table
+  // Table header
   pdf.setDrawColor(...COLORS.border)
   pdf.line(20, yPos, 190, yPos)
   yPos += 8
 
   setFont(pdf, 'bold', 9)
-  pdf.text('Description', 20, yPos)
-  pdf.text('Qty', 130, yPos, { align: 'right' })
-  pdf.text('Unit price', 155, yPos, { align: 'right' })
+  pdf.text('Payment Description', 20, yPos)
   pdf.text('Amount', 185, yPos, { align: 'right' })
 
   yPos += 8
+
+  // Item description
   setFont(pdf, 'normal', 9)
-  pdf.text(receiptData.description, 20, yPos)
-  pdf.text('1', 130, yPos, { align: 'right' })
-  pdf.text(`Rp ${receiptData.amountReceived.toLocaleString('id-ID')}`, 155, yPos, { align: 'right' })
+  const descLines = pdf.splitTextToSize(receiptData.description, 150)
+
+  // Baris pertama keterangan sejajar dengan nominal amount
+  pdf.text(descLines[0], 20, yPos)
   pdf.text(`Rp ${receiptData.amountReceived.toLocaleString('id-ID')}`, 185, yPos, { align: 'right' })
 
-  yPos += 8
+  // Sisa baris keterangan (jika panjang)
+  if (descLines.length > 1) {
+    for (let i = 1; i < descLines.length; i++) {
+      yPos += 6
+      pdf.text(descLines[i], 20, yPos)
+    }
+  }
+
+  yPos += 5
   pdf.line(20, yPos, 190, yPos)
   yPos += 8
 
   // Totals
-  pdf.text('Subtotal', 130, yPos)
-  pdf.text(`Rp ${receiptData.amountReceived.toLocaleString('id-ID')}`, 185, yPos, { align: 'right' })
-  yPos += 6
-
-  pdf.text('Total', 130, yPos)
-  pdf.text(`Rp ${receiptData.amountReceived.toLocaleString('id-ID')}`, 185, yPos, { align: 'right' })
-  yPos += 6
-
   setFont(pdf, 'bold', 10)
-  pdf.text('Amount paid', 130, yPos)
-  pdf.text(`Rp ${receiptData.amountReceived.toLocaleString('id-ID')}`, 185, yPos, { align: 'right' })
+  pdf.text('Total Paid', 130, yPos)
+  pdf.text(`Rp ${receiptData.amountReceived.toLocaleString('id-ID')} IDR`, 185, yPos, { align: 'right' })
 
   yPos += 10
   pdf.line(20, yPos, 190, yPos)
 
-  // Payment history
+  // Amount in words
   yPos += 15
-  setFont(pdf, 'bold', 14)
-  pdf.text('Payment history', 20, yPos)
-
-  yPos += 10
-  pdf.setDrawColor(...COLORS.border)
-  pdf.line(20, yPos, 190, yPos)
-  yPos += 8
-
   setFont(pdf, 'bold', 9)
-  pdf.text('Payment method', 20, yPos)
-  pdf.text('Date', 80, yPos)
-  pdf.text('Amount paid', 130, yPos)
-  pdf.text('Receipt number', 160, yPos)
+  pdf.setTextColor(...COLORS.primary)
+  pdf.text('Amount in Words (Terbilang):', 20, yPos)
 
-  yPos += 8
+  yPos += 6
+  setFont(pdf, 'italic', 10)
+  pdf.text(`"${receiptData.amountWords.charAt(0).toUpperCase() + receiptData.amountWords.slice(1)}"`, 20, yPos)
+
+  // Move to bottom for signature & acknowledgment
+  yPos = 255 // Fixed position near bottom, identik dengan Invoice
+
+  // Payment Status - kanan bawah
+  const ackYPos = yPos + 5
+  setFont(pdf, 'bold', 10)
+  pdf.setTextColor(...COLORS.primary)
+  pdf.text('Payment Status', 110, ackYPos)
+
+  setFont(pdf, 'bold', 12)
+  pdf.text('COMPLETED', 110, ackYPos + 6)
+
   setFont(pdf, 'normal', 9)
-  pdf.text(receiptData.paymentMethod, 20, yPos)
-  pdf.text(new Date(receiptData.paymentDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), 80, yPos)
-  pdf.text(`Rp ${receiptData.amountReceived.toLocaleString('id-ID')}`, 130, yPos)
-  pdf.text(receiptData.receiptNumber, 160, yPos)
-
-  // Move to bottom for signature
-  yPos = 250
+  pdf.setTextColor(...COLORS.secondary)
+  pdf.text('Thank you for your payment.', 110, ackYPos + 12)
+  pdf.text(`Paid via: ${receiptData.paymentMethod}`, 110, ackYPos + 17)
 
   // QR Signature
   await addQRSignature(pdf, receiptData, yPos)
 
   // Footer
-  yPos = 285
+  yPos = 290
   setFont(pdf, 'normal', 8)
   pdf.setTextColor(...COLORS.secondary)
-  pdf.text('To learn more about or to discuss your invoice, please visit luksurireka.com/help', 20, yPos)
+  pdf.text('This is a computer-generated receipt and requires no physical signature. To discuss your receipt, visit luksurireka.com/help', 20, yPos)
 
   pdf.save(`Receipt-${receiptData.receiptNumber}.pdf`)
 }

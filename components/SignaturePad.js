@@ -104,7 +104,7 @@ export default function SignaturePad({ onSignatureChange }) {
       documentId: docId,
       validationUrl: baseUrl,
       signedBy: 'LUDTANZA SURYA WIJAYA, S.Pd.',
-      signerTitle: 'Direktur',
+      signerTitle: 'Chief Executive Officer',
       timestamp: new Date().toISOString(),
       company: 'PT LUKSURI REKA DIGITAL SOLUTIONS',
       type: 'digital_signature_validation'
@@ -135,7 +135,7 @@ export default function SignaturePad({ onSignatureChange }) {
         documentId: docId,
         validationUrl: baseUrl,
         signedBy: 'LUDTANZA SURYA WIJAYA, S.Pd.',
-        signerTitle: 'Direktur',
+        signerTitle: 'Chief Executive Officer',
         timestamp: new Date().toISOString(),
         qrData: qrData
       })
@@ -153,7 +153,7 @@ export default function SignaturePad({ onSignatureChange }) {
         documentId: docId,
         validationUrl: baseUrl,
         signedBy: 'LUDTANZA SURYA WIJAYA, S.Pd.',
-        signerTitle: 'Direktur',
+        signerTitle: 'Chief Executive Officer',
         timestamp: new Date().toISOString(),
         qrData: qrData
       })
@@ -252,8 +252,8 @@ export default function SignaturePad({ onSignatureChange }) {
               clearSignature()
             }}
             className={`flex items-center space-x-2 px-4 py-2 rounded-xl font-semibold transition-all duration-200 ${signatureType === 'manual'
-                ? 'bg-blue-500 text-white shadow-lg'
-                : 'bg-white text-gray-600 hover:bg-gray-100'
+              ? 'bg-blue-500 text-white shadow-lg'
+              : 'bg-white text-gray-600 hover:bg-gray-100'
               }`}
           >
             <PenTool className="w-4 h-4" />
@@ -266,8 +266,8 @@ export default function SignaturePad({ onSignatureChange }) {
               clearSignature()
             }}
             className={`flex items-center space-x-2 px-4 py-2 rounded-xl font-semibold transition-all duration-200 ${signatureType === 'qr'
-                ? 'bg-green-500 text-white shadow-lg'
-                : 'bg-white text-gray-600 hover:bg-gray-100'
+              ? 'bg-green-500 text-white shadow-lg'
+              : 'bg-white text-gray-600 hover:bg-gray-100'
               }`}
           >
             <QrCode className="w-4 h-4" />
@@ -368,7 +368,7 @@ export default function SignaturePad({ onSignatureChange }) {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Title:</span>
-                      <span className="font-semibold text-gray-900">Direktur</span>
+                      <span className="font-semibold text-gray-900">Chief Executive Officer</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Company:</span>
