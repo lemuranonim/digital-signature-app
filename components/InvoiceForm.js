@@ -9,505 +9,235 @@ import { supabase } from '../lib/supabase'
 
 export default function InvoiceForm() {
   const [formData, setFormData] = useState({
-    clientName: '',
-    clientEmail: '',
-    clientAddress: '',
-    clientPhone: '',
-    issueDate: new Date().toISOString().split('T')[0],
-    dueDate: '',
-    notes: '',
-    taxRate: 11,
-    discountAmount: 0
+    clientName: '', clientEmail: '', clientAddress: '', clientPhone: '',
+    issueDate: new Date().toISOString().split('T')[0], dueDate: '',
+    notes: '', taxRate: 11, discountAmount: 0
   })
-  
-  const [items, setItems] = useState([
-    { description: '', quantity: 1, unitPrice: 0 }
-  ])
-  
+  const [items, setItems] = useState([{ description: '', quantity: 1, unitPrice: 0 }])
   const [signature, setSignature] = useState('')
   const [signatureMetadata, setSignatureMetadata] = useState({
-    type: 'manual',
-    documentId: null,
-    validationUrl: null,
-    signedBy: null,
-    signerTitle: null,
-    timestamp: null
+    type: 'manual', documentId: null, validationUrl: null,
+    signedBy: null, signerTitle: null, timestamp: null
   })
   const [isGenerating, setIsGenerating] = useState(false)
 
-  const handleSignatureChange = (signatureData, metadata) => {
-    console.log('Signature data received:', { signatureData: signatureData ? 'Present' : 'Empty', metadata })
-    setSignature(signatureData)
-    setSignatureMetadata(metadata || {
-      type: 'manual',
-      documentId: null,
-      validationUrl: null,
-      signedBy: null,
-      signerTitle: null,
-      timestamp: null
-    })
+  const handleSignatureChange = (sig, meta) => {
+    setSignature(sig)
+    setSignatureMetadata(meta || { type: 'manual', documentId: null, validationUrl: null, signedBy: null, signerTitle: null, timestamp: null })
   }
 
-  const addItem = () => {
-    setItems([...items, { description: '', quantity: 1, unitPrice: 0 }])
-  }
+  const addItem = () => setItems([...items, { description: '', quantity: 1, unitPrice: 0 }])
+  const removeItem = (i) => { if (items.length > 1) setItems(items.filter((_, idx) => idx !== i)) }
+  const updateItem = (i, field, value) => { const u = [...items]; u[i][field] = value; setItems(u) }
 
-  const removeItem = (index) => {
-    if (items.length > 1) {
-      setItems(items.filter((_, i) => i !== index))
-    }
-  }
-
-  const updateItem = (index, field, value) => {
-    const updatedItems = [...items]
-    updatedItems[index][field] = value
-    setItems(updatedItems)
-  }
-
-  const calculateSubtotal = () => {
-    return items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0)
-  }
-
-  const calculateTax = () => {
-    return (calculateSubtotal() - formData.discountAmount) * (formData.taxRate / 100)
-  }
-
-  const calculateTotal = () => {
-    return calculateSubtotal() - formData.discountAmount + calculateTax()
-  }
+  const calculateSubtotal = () => items.reduce((s, it) => s + (it.quantity * it.unitPrice), 0)
+  const calculateTax = () => (calculateSubtotal() - formData.discountAmount) * (formData.taxRate / 100)
+  const calculateTotal = () => calculateSubtotal() - formData.discountAmount + calculateTax()
 
   const generateInvoiceNumber = () => {
-    const date = new Date()
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
-    return `INV-${year}${month}-${random}`
+    const d = new Date()
+    return `INV-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`
   }
 
   const resetForm = () => {
     setFormData({
-      clientName: '',
-      clientEmail: '',
-      clientAddress: '',
-      clientPhone: '',
-      issueDate: new Date().toISOString().split('T')[0],
-      dueDate: '',
-      notes: '',
-      taxRate: 11,
-      discountAmount: 0
+      clientName: '', clientEmail: '', clientAddress: '', clientPhone: '',
+      issueDate: new Date().toISOString().split('T')[0], dueDate: '', notes: '', taxRate: 11, discountAmount: 0
     })
     setItems([{ description: '', quantity: 1, unitPrice: 0 }])
     setSignature('')
-    setSignatureMetadata({
-      type: 'manual',
-      documentId: null,
-      validationUrl: null,
-      signedBy: null,
-      signerTitle: null,
-      timestamp: null
-    })
+    setSignatureMetadata({ type: 'manual', documentId: null, validationUrl: null, signedBy: null, signerTitle: null, timestamp: null })
   }
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setIsGenerating(true)
-    
+    e.preventDefault(); setIsGenerating(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error("Pengguna tidak ditemukan. Silakan login kembali.")
-
+      if (!user) throw new Error('Pengguna tidak ditemukan. Silakan login kembali.')
       const invoiceNumber = generateInvoiceNumber()
-      const subtotal = calculateSubtotal()
-      const taxAmount = calculateTax()
-      const total = calculateTotal()
-      
-      // Prepare signature metadata for database
-      const signatureDataForDB = {
-        signature_data: signature,
-        signature_type: signatureMetadata.type,
-        qr_document_id: signatureMetadata.documentId,
-        qr_validation_url: signatureMetadata.validationUrl,
-        qr_signed_by: signatureMetadata.signedBy,
-        qr_signer_title: signatureMetadata.signerTitle,
+      const subtotal = calculateSubtotal(), taxAmount = calculateTax(), total = calculateTotal()
+      const sigDB = {
+        signature_data: signature, signature_type: signatureMetadata.type,
+        qr_document_id: signatureMetadata.documentId, qr_validation_url: signatureMetadata.validationUrl,
+        qr_signed_by: signatureMetadata.signedBy, qr_signer_title: signatureMetadata.signerTitle,
         qr_timestamp: signatureMetadata.timestamp
       }
-
-      console.log('Saving invoice with signature metadata:', signatureDataForDB)
-      
-      // Save to database
-      const { data: invoice, error: invoiceError } = await supabase
-        .from('invoices')
-        .insert({
-          invoice_number: invoiceNumber,
-          client_name: formData.clientName,
-          client_email: formData.clientEmail,
-          client_address: formData.clientAddress,
-          client_phone: formData.clientPhone,
-          issue_date: formData.issueDate,
-          due_date: formData.dueDate,
-          subtotal: subtotal,
-          tax_amount: taxAmount,
-          discount_amount: formData.discountAmount,
-          total_amount: total,
-          notes: formData.notes,
-          status: 'issued',
-          user_id: user.id,
-          ...signatureDataForDB
-        })
-        .select()
-        .single()
-
-      if (invoiceError) {
-        console.error('Invoice insertion error:', invoiceError)
-        throw invoiceError
-      }
-
-      console.log('Invoice saved successfully:', invoice)
-
-      // Save invoice items
-      const itemsToInsert = items.map(item => ({
-        invoice_id: invoice.id,
-        description: item.description,
-        quantity: item.quantity,
-        unit_price: item.unitPrice,
-        total: item.quantity * item.unitPrice
-      }))
-
-      const { error: itemsError } = await supabase
-        .from('invoice_items')
-        .insert(itemsToInsert)
-
-      if (itemsError) {
-        console.error('Invoice items insertion error:', itemsError)
-        throw itemsError
-      }
-
-      // Prepare data for PDF generation
-      const invoiceData = {
-        invoiceNumber,
-        clientName: formData.clientName,
-        clientEmail: formData.clientEmail,
-        clientAddress: formData.clientAddress,
-        clientPhone: formData.clientPhone,
-        issueDate: formData.issueDate,
-        dueDate: formData.dueDate,
-        items: items,
-        subtotal: subtotal,
-        taxAmount: taxAmount,
-        discountAmount: formData.discountAmount,
-        total: total,
-        notes: formData.notes,
-        signature: signature,
-        signatureType: signatureMetadata.type,
-        signatureMetadata: signatureMetadata,
-        taxRate: formData.taxRate
-      }
-
-      console.log('Generating PDF with complete signature data:', {
-        hasSignature: !!signature,
-        signatureType: signatureMetadata.type,
-        signatureMetadata: signatureMetadata,
-        signatureDataLength: signature ? signature.length : 0
+      const { data: invoice, error: invoiceError } = await supabase.from('invoices').insert({
+        invoice_number: invoiceNumber, client_name: formData.clientName, client_email: formData.clientEmail,
+        client_address: formData.clientAddress, client_phone: formData.clientPhone,
+        issue_date: formData.issueDate, due_date: formData.dueDate, subtotal, tax_amount: taxAmount,
+        discount_amount: formData.discountAmount, total_amount: total, notes: formData.notes,
+        status: 'issued', user_id: user.id, ...sigDB
+      }).select().single()
+      if (invoiceError) throw invoiceError
+      const { error: itemsError } = await supabase.from('invoice_items').insert(
+        items.map(it => ({ invoice_id: invoice.id, description: it.description, quantity: it.quantity, unit_price: it.unitPrice, total: it.quantity * it.unitPrice }))
+      )
+      if (itemsError) throw itemsError
+      await generateInvoicePDF({
+        invoiceNumber, clientName: formData.clientName, clientEmail: formData.clientEmail,
+        clientAddress: formData.clientAddress, clientPhone: formData.clientPhone, issueDate: formData.issueDate,
+        dueDate: formData.dueDate, items, subtotal, taxAmount, discountAmount: formData.discountAmount,
+        total, notes: formData.notes, signature, signatureType: signatureMetadata.type,
+        signatureMetadata, taxRate: formData.taxRate
       })
-      
-      // Generate PDF
-      await generateInvoicePDF(invoiceData)
-      
-      // Reset form
       resetForm()
-      
       alert('Invoice berhasil dibuat dan disimpan!')
-      
     } catch (error) {
       console.error('Error creating invoice:', error)
-      alert(`Terjadi kesalahan saat membuat invoice: ${error.message}`)
-    } finally {
-      setIsGenerating(false)
-    }
+      alert(`Terjadi kesalahan: ${error.message}`)
+    } finally { setIsGenerating(false) }
   }
 
+  // Section header helper
+  const SectionHeader = ({ Icon, title, sub, color = '#00F0FF', action }) => (
+    <div className="px-7 py-5 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+      <div className="flex items-center space-x-3">
+        <div className="p-2.5 rounded-xl" style={{ background: `${color}15`, border: `1px solid ${color}25` }}>
+          <Icon className="w-5 h-5" style={{ color }} />
+        </div>
+        <div>
+          <h3 className="font-bold text-white">{title}</h3>
+          {sub && <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>{sub}</p>}
+        </div>
+      </div>
+      {action}
+    </div>
+  )
+
   return (
-    <div className="space-y-8">
-      <form onSubmit={handleSubmit} className="space-y-8">
-        {/* Client Information */}
-        <div className="overflow-hidden border shadow-xl bg-white/90 backdrop-blur-sm rounded-3xl border-gray-200/50">
-          <div className="p-8 border-b border-gray-100">
-            <div className="flex items-center space-x-3">
-              <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl">
-                <User className="w-6 h-6 text-white" />
+    <div className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6">
+
+        {/* Client Info */}
+        <div className="glass-card overflow-hidden">
+          <SectionHeader Icon={User} title="Client Information" sub="Enter your client's business details" />
+          <div className="p-7 grid grid-cols-1 gap-5 md:grid-cols-2">
+            {[
+              { label: 'Client Name *', field: 'clientName', type: 'text', required: true, placeholder: 'PT. Client Company Name' },
+              { label: 'Email Address', field: 'clientEmail', type: 'email', placeholder: 'client@company.com' },
+              { label: 'Phone Number', field: 'clientPhone', type: 'tel', placeholder: '+62 812 3456 7890' },
+            ].map(({ label, field, type, required, placeholder }) => (
+              <div key={field}>
+                <label className="block mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(0,240,255,0.7)' }}>{label}</label>
+                <input type={type} required={required} value={formData[field]}
+                  onChange={(e) => setFormData({ ...formData, [field]: e.target.value })}
+                  className="neon-input" placeholder={placeholder} />
               </div>
-              <div>
-                <h3 className="text-xl font-bold text-gray-900">Client Information</h3>
-                <p className="text-gray-600">Enter your client's business details</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="p-8">
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              <div>
-                <label className="block mb-3 text-sm font-bold text-gray-700">
-                  Client Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.clientName}
-                  onChange={(e) => setFormData({...formData, clientName: e.target.value})}
-                  className="w-full px-5 py-4 transition-all duration-200 border-2 border-gray-200 bg-white/90 rounded-2xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-                  placeholder="PT. Client Company Name"
-                />
-              </div>
-              <div>
-                <label className="block mb-3 text-sm font-bold text-gray-700">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  value={formData.clientEmail}
-                  onChange={(e) => setFormData({...formData, clientEmail: e.target.value})}
-                  className="w-full px-5 py-4 transition-all duration-200 border-2 border-gray-200 bg-white/90 rounded-2xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-                  placeholder="client@company.com"
-                />
-              </div>
-              <div>
-                <label className="block mb-3 text-sm font-bold text-gray-700">
-                  Business Address
-                </label>
-                <textarea
-                  value={formData.clientAddress}
-                  onChange={(e) => setFormData({...formData, clientAddress: e.target.value})}
-                  className="w-full px-5 py-4 transition-all duration-200 border-2 border-gray-200 bg-white/90 rounded-2xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-                  rows="3"
-                  placeholder="Complete business address..."
-                />
-              </div>
-              <div>
-                <label className="block mb-3 text-sm font-bold text-gray-700">
-                  Phone Number
-                </label>
-                <input
-                  type="tel"
-                  value={formData.clientPhone}
-                  onChange={(e) => setFormData({...formData, clientPhone: e.target.value})}
-                  className="w-full px-5 py-4 transition-all duration-200 border-2 border-gray-200 bg-white/90 rounded-2xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-                  placeholder="+62 812 3456 7890"
-                />
-              </div>
+            ))}
+            <div>
+              <label className="block mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(0,240,255,0.7)' }}>Business Address</label>
+              <textarea value={formData.clientAddress} onChange={(e) => setFormData({ ...formData, clientAddress: e.target.value })}
+                className="neon-input" rows="3" placeholder="Complete business address..." />
             </div>
           </div>
         </div>
 
         {/* Invoice Details */}
-        <div className="overflow-hidden border shadow-xl bg-white/90 backdrop-blur-sm rounded-3xl border-gray-200/50">
-          <div className="p-8 border-b border-gray-100">
-            <div className="flex items-center space-x-3">
-              <div className="p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl">
-                <Calendar className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-gray-900">Invoice Details</h3>
-                <p className="text-gray-600">Configure invoice dates and terms</p>
-              </div>
+        <div className="glass-card overflow-hidden">
+          <SectionHeader Icon={Calendar} title="Invoice Details" sub="Configure invoice dates and terms" color="#00FF88" />
+          <div className="p-7 grid grid-cols-1 gap-5 md:grid-cols-2">
+            <div>
+              <label className="block mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(0,255,136,0.7)' }}>Issue Date *</label>
+              <input type="date" required value={formData.issueDate}
+                onChange={(e) => setFormData({ ...formData, issueDate: e.target.value })} className="neon-input" />
             </div>
-          </div>
-          
-          <div className="p-8">
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              <div>
-                <label className="block mb-3 text-sm font-bold text-gray-700">
-                  Issue Date *
-                </label>
-                <input
-                  type="date"
-                  required
-                  value={formData.issueDate}
-                  onChange={(e) => setFormData({...formData, issueDate: e.target.value})}
-                  className="w-full px-5 py-4 transition-all duration-200 border-2 border-gray-200 bg-white/90 rounded-2xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-                />
-              </div>
-              <div>
-                <label className="block mb-3 text-sm font-bold text-gray-700">
-                  Due Date *
-                </label>
-                <input
-                  type="date"
-                  required
-                  value={formData.dueDate}
-                  onChange={(e) => setFormData({...formData, dueDate: e.target.value})}
-                  className="w-full px-5 py-4 transition-all duration-200 border-2 border-gray-200 bg-white/90 rounded-2xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-                />
-              </div>
+            <div>
+              <label className="block mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(0,255,136,0.7)' }}>Due Date *</label>
+              <input type="date" required value={formData.dueDate}
+                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })} className="neon-input" />
             </div>
           </div>
         </div>
 
         {/* Invoice Items */}
-        <div className="overflow-hidden border shadow-xl bg-white/90 backdrop-blur-sm rounded-3xl border-gray-200/50">
-          <div className="p-8 border-b border-gray-100">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="p-3 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl">
-                  <Receipt className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900">Invoice Items</h3>
-                  <p className="text-gray-600">Add products or services to invoice</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={addItem}
-                className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-2xl font-semibold hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5"
-              >
-                <Plus className="w-5 h-5" />
-                <span>Add Item</span>
+        <div className="glass-card overflow-hidden">
+          <SectionHeader Icon={Receipt} title="Invoice Items" sub="Add products or services to invoice" color="#a78bfa"
+            action={
+              <button type="button" onClick={addItem} className="neon-button text-sm"
+                style={{ borderColor: 'rgba(167,139,250,0.4)', color: '#a78bfa', background: 'rgba(167,139,250,0.08)' }}>
+                <Plus className="w-4 h-4" /> Add Item
               </button>
-            </div>
-          </div>
-          
-          <div className="p-8">
-            <div className="space-y-6">
-              {items.map((item, index) => (
-                <div key={index} className="relative p-6 border border-gray-100 bg-gradient-to-r from-gray-50/80 to-white rounded-2xl">
-                  <div className="grid grid-cols-1 gap-6 md:grid-cols-6">
-                    <div className="md:col-span-2">
-                      <label className="block mb-3 text-sm font-bold text-gray-700">
-                        Description
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={item.description}
-                        onChange={(e) => updateItem(index, 'description', e.target.value)}
-                        className="w-full px-4 py-3 transition-all duration-200 bg-white border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10"
-                        placeholder="Service or product description"
-                      />
+            } />
+          <div className="p-7 space-y-4">
+            {items.map((item, index) => (
+              <div key={index} className="p-5 rounded-2xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+                  <div className="col-span-2 sm:col-span-2">
+                    <label className="block mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(167,139,250,0.7)' }}>Description</label>
+                    <input type="text" required value={item.description}
+                      onChange={(e) => updateItem(index, 'description', e.target.value)}
+                      className="neon-input" placeholder="Service or product description" />
+                  </div>
+                  <div>
+                    <label className="block mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(167,139,250,0.7)' }}>Qty</label>
+                    <input type="number" required min="1" value={item.quantity}
+                      onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)} className="neon-input" />
+                  </div>
+                  <div>
+                    <label className="block mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(167,139,250,0.7)' }}>Unit Price (Rp)</label>
+                    <input type="number" required min="0" value={item.unitPrice}
+                      onChange={(e) => updateItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
+                      className="neon-input" placeholder="0" />
+                  </div>
+                  <div className="col-span-2 sm:col-span-4 flex items-center gap-3">
+                    <div className="flex-1 neon-input font-bold font-mono-luksuri text-center text-sm"
+                      style={{ color: '#00F0FF', borderColor: 'rgba(0,240,255,0.20)' }}>
+                      Subtotal: Rp {(item.quantity * item.unitPrice).toLocaleString('id-ID')}
                     </div>
-                    <div>
-                      <label className="block mb-3 text-sm font-bold text-gray-700">
-                        Quantity
-                      </label>
-                      <input
-                        type="number"
-                        required
-                        min="1"
-                        value={item.quantity}
-                        onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
-                        className="w-full px-4 py-3 transition-all duration-200 bg-white border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10"
-                      />
-                    </div>
-                    <div>
-                      <label className="block mb-3 text-sm font-bold text-gray-700">
-                        Unit Price (Rp)
-                      </label>
-                      <input
-                        type="number"
-                        required
-                        min="0"
-                        value={item.unitPrice}
-                        onChange={(e) => updateItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                        className="w-full px-4 py-3 transition-all duration-200 bg-white border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10"
-                        placeholder="0"
-                      />
-                    </div>
-                    <div>
-                      <label className="block mb-3 text-sm font-bold text-gray-700">
-                        Total
-                      </label>
-                      <div className="px-4 py-3 font-bold text-gray-900 bg-gray-100 border-2 border-gray-200 rounded-xl">
-                        Rp {(item.quantity * item.unitPrice).toLocaleString('id-ID')}
-                      </div>
-                    </div>
-                    <div className="flex items-end">
-                      <button
-                        type="button"
-                        onClick={() => removeItem(index)}
-                        disabled={items.length === 1}
-                        className={`p-3 rounded-xl transition-all duration-200 ${
-                          items.length === 1 
-                            ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
-                            : 'bg-red-500 hover:bg-red-600 text-white hover:scale-105'
-                        }`}
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </div>
+                    <button type="button" onClick={() => removeItem(index)} disabled={items.length === 1}
+                      className="p-2.5 rounded-xl transition-all flex-shrink-0"
+                      style={{
+                        background: items.length === 1 ? 'rgba(255,255,255,0.05)' : 'rgba(255,0,60,0.10)',
+                        color: items.length === 1 ? 'rgba(255,255,255,0.2)' : '#FF003C',
+                        border: `1px solid ${items.length === 1 ? 'rgba(255,255,255,0.06)' : 'rgba(255,0,60,0.25)'}`
+                      }}>
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         </div>
 
         {/* Calculations */}
-        <div className="overflow-hidden border shadow-xl bg-white/90 backdrop-blur-sm rounded-3xl border-gray-200/50">
-          <div className="p-8 border-b border-gray-100">
-            <div className="flex items-center space-x-3">
-              <div className="p-3 bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl">
-                <Calculator className="w-6 h-6 text-white" />
+        <div className="glass-card overflow-hidden">
+          <SectionHeader Icon={Calculator} title="Invoice Calculations" sub="Configure discounts and tax rates" color="#FFBE0B" />
+          <div className="p-7">
+            <div className="grid grid-cols-1 gap-5 mb-7 md:grid-cols-2">
+              <div>
+                <label className="block mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(251,191,36,0.7)' }}>Discount Amount (Rp)</label>
+                <input type="number" min="0" value={formData.discountAmount}
+                  onChange={(e) => setFormData({ ...formData, discountAmount: parseFloat(e.target.value) || 0 })}
+                  className="neon-input" placeholder="0" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-gray-900">Invoice Calculations</h3>
-                <p className="text-gray-600">Configure discounts and tax rates</p>
+                <label className="block mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(251,191,36,0.7)' }}>Tax Rate (%)</label>
+                <input type="number" min="0" max="100" step="0.1" value={formData.taxRate}
+                  onChange={(e) => setFormData({ ...formData, taxRate: parseFloat(e.target.value) || 0 })}
+                  className="neon-input" />
               </div>
             </div>
-          </div>
-          
-          <div className="p-8">
-            <div className="grid grid-cols-1 gap-6 mb-8 md:grid-cols-2">
-              <div>
-                <label className="block mb-3 text-sm font-bold text-gray-700">
-                  Discount Amount (Rp)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={formData.discountAmount}
-                  onChange={(e) => setFormData({...formData, discountAmount: parseFloat(e.target.value) || 0})}
-                  className="w-full px-5 py-4 transition-all duration-200 border-2 border-gray-200 bg-white/90 rounded-2xl focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10"
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <label className="block mb-3 text-sm font-bold text-gray-700">
-                  Tax Rate (%)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  value={formData.taxRate}
-                  onChange={(e) => setFormData({...formData, taxRate: parseFloat(e.target.value) || 0})}
-                  className="w-full px-5 py-4 transition-all duration-200 border-2 border-gray-200 bg-white/90 rounded-2xl focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10"
-                />
-              </div>
-            </div>
-            
-            {/* Invoice Summary */}
-            <div className="p-8 border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-3xl">
-              <h4 className="mb-6 text-lg font-bold text-blue-900">Invoice Summary</h4>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between py-2">
-                  <span className="font-medium text-blue-700">Subtotal:</span>
-                  <span className="text-lg font-bold text-blue-900">Rp {calculateSubtotal().toLocaleString('id-ID')}</span>
-                </div>
-                {formData.discountAmount > 0 && (
-                  <div className="flex items-center justify-between py-2">
-                    <span className="font-medium text-blue-700">Discount:</span>
-                    <span className="text-lg font-bold text-red-600">- Rp {formData.discountAmount.toLocaleString('id-ID')}</span>
+            {/* Summary */}
+            <div className="p-6 rounded-2xl" style={{ background: 'rgba(0,240,255,0.04)', border: '1px solid rgba(0,240,255,0.15)' }}>
+              <h4 className="font-bold text-white mb-5">Invoice Summary</h4>
+              <div className="space-y-3">
+                {[
+                  { label: 'Subtotal', value: `Rp ${calculateSubtotal().toLocaleString('id-ID')}` },
+                  ...(formData.discountAmount > 0 ? [{ label: 'Discount', value: `- Rp ${formData.discountAmount.toLocaleString('id-ID')}`, red: true }] : []),
+                  { label: `Tax (${formData.taxRate}%)`, value: `Rp ${calculateTax().toLocaleString('id-ID')}` },
+                ].map(({ label, value, red }) => (
+                  <div key={label} className="flex justify-between items-center">
+                    <span className="text-sm" style={{ color: 'rgba(0,240,255,0.6)' }}>{label}:</span>
+                    <span className="font-bold font-mono-luksuri" style={{ color: red ? '#FF003C' : '#fff' }}>{value}</span>
                   </div>
-                )}
-                <div className="flex items-center justify-between py-2">
-                  <span className="font-medium text-blue-700">Tax ({formData.taxRate}%):</span>
-                  <span className="text-lg font-bold text-blue-900">Rp {calculateTax().toLocaleString('id-ID')}</span>
-                </div>
-                <div className="pt-4 mt-4 border-t-2 border-blue-300">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xl font-bold text-blue-900">TOTAL:</span>
-                    <span className="text-2xl font-bold text-blue-600">Rp {calculateTotal().toLocaleString('id-ID')}</span>
-                  </div>
+                ))}
+                <div className="pt-4 mt-2 flex justify-between items-center" style={{ borderTop: '1px solid rgba(0,240,255,0.20)' }}>
+                  <span className="text-lg font-bold text-white">TOTAL:</span>
+                  <span className="text-2xl font-bold font-mono-luksuri" style={{ color: '#00F0FF' }}>
+                    Rp {calculateTotal().toLocaleString('id-ID')}
+                  </span>
                 </div>
               </div>
             </div>
@@ -515,61 +245,31 @@ export default function InvoiceForm() {
         </div>
 
         {/* Notes */}
-        <div className="overflow-hidden border shadow-xl bg-white/90 backdrop-blur-sm rounded-3xl border-gray-200/50">
-          <div className="p-8 border-b border-gray-100">
-            <div className="flex items-center space-x-3">
-              <div className="p-3 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl">
-                <FileText className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-gray-900">Additional Notes</h3>
-                <p className="text-gray-600">Add terms, conditions, or special instructions</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="p-8">
-            <textarea
-              value={formData.notes}
-              onChange={(e) => setFormData({...formData, notes: e.target.value})}
-              className="w-full px-5 py-4 transition-all duration-200 border-2 border-gray-200 bg-white/90 rounded-2xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
-              rows="4"
-              placeholder="Payment terms, delivery conditions, or other important notes..."
-            />
+        <div className="glass-card overflow-hidden">
+          <SectionHeader Icon={FileText} title="Additional Notes" sub="Add terms, conditions, or special instructions" color="#00F0FF" />
+          <div className="p-7">
+            <textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              className="neon-input" rows="4" placeholder="Payment terms, delivery conditions, or other important notes..." />
           </div>
         </div>
 
         {/* Digital Signature */}
-        <div className="overflow-hidden border shadow-xl bg-white/90 backdrop-blur-sm rounded-3xl border-gray-200/50">
-          <div className="p-8 border-b border-gray-100">
-            <div className="flex items-center space-x-3">
-              <div className="p-3 bg-gradient-to-br from-rose-500 to-rose-600 rounded-2xl">
-                <PenTool className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-gray-900">Digital Signature</h3>
-                <p className="text-gray-600">Add your electronic signature to the invoice</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="p-8">
+        <div className="glass-card overflow-hidden">
+          <SectionHeader Icon={PenTool} title="Digital Signature" sub="Add your electronic signature to the invoice" color="#FF003C" />
+          <div className="p-7">
             <SignaturePad onSignatureChange={handleSignatureChange} />
-            
-            {/* Signature Preview */}
             {signature && (
-              <div className="p-4 mt-6 bg-green-50 rounded-2xl">
-                <div className="flex items-center mb-2 space-x-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-sm font-semibold text-green-800">
+              <div className="p-4 mt-5 rounded-2xl" style={{ background: 'rgba(0,255,136,0.06)', border: '1px solid rgba(0,255,136,0.20)' }}>
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#00FF88' }} />
+                  <span className="text-sm font-semibold" style={{ color: '#00FF88' }}>
                     {signatureMetadata.type === 'qr' ? 'QR Digital Signature Ready' : 'Manual Signature Captured'}
                   </span>
                 </div>
                 {signatureMetadata.type === 'qr' && signatureMetadata.documentId && (
-                  <div className="mt-2 text-xs text-green-700">
+                  <div className="mt-2 text-xs font-mono-luksuri" style={{ color: 'rgba(0,255,136,0.6)' }}>
                     <p>Document ID: {signatureMetadata.documentId}</p>
                     <p>Signed by: {signatureMetadata.signedBy}</p>
-                    <p>This QR signature will be embedded in the generated PDF</p>
                   </div>
                 )}
               </div>
@@ -577,37 +277,15 @@ export default function InvoiceForm() {
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex flex-col justify-end space-y-4 sm:flex-row sm:space-y-0 sm:space-x-6">
-          <button
-            type="button"
-            onClick={resetForm}
-            className="flex items-center justify-center px-8 py-4 space-x-2 font-semibold text-gray-700 transition-all duration-200 bg-white border-2 border-gray-300 rounded-2xl hover:bg-gray-50 hover:border-gray-400"
-          >
-            <RotateCcw className="w-5 h-5" />
-            <span>Reset Form</span>
+        {/* Actions */}
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <button type="button" onClick={resetForm} className="neon-button-ghost">
+            <RotateCcw className="w-4 h-4" /> Reset Form
           </button>
-          
-          <button
-            type="submit"
-            disabled={isGenerating}
-            className={`flex items-center justify-center space-x-2 px-8 py-4 rounded-2xl font-bold text-lg transition-all duration-200 ${
-              isGenerating 
-                ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
-                : 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white hover:from-blue-700 hover:to-indigo-800 hover:shadow-xl hover:-translate-y-1'
-            }`}
-          >
-            {isGenerating ? (
-              <>
-                <div className="w-5 h-5 border-2 rounded-full border-white/30 border-t-white animate-spin"></div>
-                <span>Creating Invoice...</span>
-              </>
-            ) : (
-              <>
-                <Download className="w-5 h-5" />
-                <span>Create & Download Invoice</span>
-              </>
-            )}
+          <button type="submit" disabled={isGenerating} className="neon-button-solid text-base font-bold px-8 py-4">
+            {isGenerating
+              ? <><div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" /><span>Creating Invoice...</span></>
+              : <><Download className="w-5 h-5" /><span>Create &amp; Download Invoice</span></>}
           </button>
         </div>
       </form>

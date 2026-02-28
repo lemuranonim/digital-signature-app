@@ -1,8 +1,8 @@
-// app/admin/page.js (Clean Premium UI/UX Version)
+// app/admin/page.js
 'use client'
 
 import { useState, useEffect } from 'react'
-import { FileText, Receipt, PenTool, Plus, Download, BarChart3, TrendingUp, Zap, Shield, QrCode } from 'lucide-react'
+import { FileText, Receipt, PenTool, Plus, Download, BarChart3, QrCode, LogOut } from 'lucide-react'
 import InvoiceForm from '../../components/InvoiceForm'
 import ReceiptForm from '../../components/ReceiptForm'
 import SignatureForm from '../../components/SignatureForm'
@@ -10,294 +10,116 @@ import DocumentList from '../../components/DocumentList'
 import Dashboard from '../../components/Dashboard'
 import { supabase } from '../../lib/supabase'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 
-export default function Home() {
+export default function AdminPage() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [isLoaded, setIsLoaded] = useState(false)
   const router = useRouter()
 
-  useEffect(() => {
-    setIsLoaded(true)
-  }, [])
+  useEffect(() => { setIsLoaded(true) }, [])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    router.push('/login')
-    router.refresh()
+    router.push('/login'); router.refresh()
   }
 
   const tabs = [
-    {
-      id: 'dashboard',
-      label: 'Dashboard',
-      icon: BarChart3,
-      description: 'Overview & Analytics',
-      color: 'from-blue-500 to-blue-600'
-    },
-    {
-      id: 'invoice',
-      label: 'Buat Invoice',
-      icon: Plus,
-      description: 'Create New Invoice',
-      color: 'from-green-500 to-green-600'
-    },
-    {
-      id: 'receipt',
-      label: 'Buat Kwitansi',
-      icon: Receipt,
-      description: 'Generate Receipt',
-      color: 'from-amber-500 to-amber-600'
-    },
-    {
-      id: 'signature',
-      label: 'TTD Dokumen',
-      icon: QrCode,
-      description: 'QR untuk Proposal & Surat',
-      color: 'from-pink-500 to-pink-600'
-    },
-    {
-      id: 'documents',
-      label: 'Kelola Dokumen',
-      icon: Download,
-      description: 'Manage All Documents',
-      color: 'from-purple-500 to-purple-600'
-    },
+    { id: 'dashboard', label: 'Dashboard', shortLabel: 'Home', Icon: BarChart3, color: '#00F0FF' },
+    { id: 'invoice', label: 'Buat Invoice', shortLabel: 'Invoice', Icon: Plus, color: '#00F0FF' },
+    { id: 'receipt', label: 'Buat Kwitansi', shortLabel: 'Kwitansi', Icon: Receipt, color: '#00FF88' },
+    { id: 'signature', label: 'TTD Dokumen', shortLabel: 'TTD', Icon: QrCode, color: '#FF003C' },
+    { id: 'documents', label: 'Kelola Dokumen', shortLabel: 'Dokumen', Icon: Download, color: '#a78bfa' },
   ]
 
-  const features = [
-    {
-      icon: Zap,
-      title: 'Lightning Fast',
-      description: 'Generate professional documents in seconds',
-      gradient: 'from-yellow-400 to-orange-500'
-    },
-    {
-      icon: Shield,
-      title: 'Secure & Reliable',
-      description: 'Enterprise-grade security for your data',
-      gradient: 'from-green-400 to-blue-500'
-    },
-    {
-      icon: PenTool,
-      title: 'Digital Signature',
-      description: 'Legally binding electronic signatures',
-      gradient: 'from-purple-400 to-pink-500'
-    },
-    {
-      icon: TrendingUp,
-      title: 'Business Growth',
-      description: 'Streamline your invoice workflow',
-      gradient: 'from-blue-400 to-indigo-500'
-    }
-  ]
+  const activeTabConfig = tabs.find(t => t.id === activeTab)
 
   return (
-    <div className={`space-y-8 transition-all duration-1000 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-      {/* Hero Header Section */}
-      <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-indigo-700 to-purple-800 rounded-3xl"></div>
-        <div className="absolute inset-0 bg-black/10 rounded-3xl"></div>
-        <div className="absolute top-0 right-0 rounded-full w-96 h-96 bg-gradient-to-br from-white/10 to-transparent blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 rounded-full w-80 h-80 bg-gradient-to-tr from-yellow-400/20 to-transparent blur-3xl"></div>
+    <div className="min-h-screen" style={{ backgroundColor: '#050510' }}>
+      <div className={`transition-all duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
 
-        <div className="relative p-12">
-          <button
-            onClick={handleLogout}
-            className="absolute top-6 right-6 flex items-center px-4 py-2 space-x-2 text-sm font-semibold text-white transition-all duration-200 border bg-white/15 backdrop-blur-sm rounded-xl border-white/20 hover:bg-white/25"
-          >
-            <span>Logout</span>
-          </button>
-          <div className="max-w-4xl mx-auto text-center">
-            <div className="mb-8">
-              <div className="inline-flex items-center mb-6 space-x-3">
-                <div className="p-4 bg-white/20 backdrop-blur-sm rounded-3xl">
-                  <PenTool className="w-10 h-10 text-white" />
+        {/* ── Sticky Nav ── */}
+        <nav className="nav-dark sticky top-0 z-50">
+          <div className="max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-14 sm:h-20 gap-2">
+
+              {/* Logo */}
+              <div className="flex items-center space-x-2 flex-shrink-0">
+                <div className="relative">
+                  <div className="absolute inset-0 rounded-xl blur-sm opacity-40"
+                    style={{ background: 'rgba(0,240,255,0.3)' }} />
+                  <Image src="/logo.png" alt="Logo" width={36} height={36}
+                    className="relative w-8 h-8 sm:w-11 sm:h-11 rounded-xl object-contain" />
                 </div>
-                <div className="text-left">
-                  <h1 className="text-4xl font-bold leading-tight text-white md:text-5xl">
-                    Digital Signature
-                    <span className="block mt-1 text-2xl font-medium text-blue-100 md:text-3xl">
-                      Management System
-                    </span>
-                  </h1>
+                <div className="hidden sm:block">
+                  <h1 className="text-base sm:text-lg font-extrabold gradient-text-cyan">LUKSURI SIGN</h1>
+                  <p className="text-[10px] uppercase tracking-widest font-semibold"
+                    style={{ color: 'rgba(0,240,255,0.45)' }}>Admin Dashboard</p>
                 </div>
               </div>
 
-              <p className="mb-8 text-xl leading-relaxed text-blue-100 md:text-2xl">
-                Kelola Invoice & Kwitansi Digital dengan Teknologi
-                <span className="font-semibold text-white"> Tanda Tangan Elektronik</span>
-              </p>
-            </div>
-
-            <div className="inline-flex items-center px-6 py-3 space-x-3 border bg-white/15 backdrop-blur-sm rounded-2xl border-white/20">
-              <div className="flex items-center justify-center w-8 h-8 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-xl">
-                <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                </svg>
+              {/* Desktop tab nav */}
+              <div className="hidden md:flex items-center space-x-1 p-1.5 rounded-2xl flex-1 max-w-2xl mx-auto"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                {tabs.map(({ id, label, Icon, color }) => (
+                  <button key={id} onClick={() => setActiveTab(id)}
+                    className="flex items-center space-x-1.5 px-3 py-2 rounded-xl font-semibold text-xs flex-1 justify-center transition-all"
+                    style={activeTab === id
+                      ? { background: `${color}15`, color, border: `1px solid ${color}35` }
+                      : { color: 'rgba(255,255,255,0.5)', border: '1px solid transparent' }}>
+                    <Icon className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span className="hidden lg:inline truncate">{label}</span>
+                  </button>
+                ))}
               </div>
-              <span className="text-lg font-bold text-white">
-                PT LUKSURI REKA DIGITAL SOLUTIONS
-              </span>
-            </div>
 
-            <div className="grid grid-cols-2 gap-4 mt-12 md:grid-cols-4">
-              {features.map((feature, index) => {
-                const Icon = feature.icon
-                return (
-                  <div key={index} className="p-4 text-center transition-all duration-300 border bg-white/10 backdrop-blur-sm rounded-2xl border-white/20 hover:bg-white/20">
-                    <div className={`w-12 h-12 mx-auto mb-3 bg-gradient-to-br ${feature.gradient} rounded-2xl flex items-center justify-center`}>
-                      <Icon className="w-6 h-6 text-white" />
-                    </div>
-                    <h3 className="mb-1 text-sm font-bold text-white">{feature.title}</h3>
-                    <p className="text-xs text-blue-100">{feature.description}</p>
-                  </div>
-                )
-              })}
+              {/* Logout */}
+              <button onClick={handleLogout}
+                className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl transition-all flex-shrink-0"
+                style={{ borderColor: 'rgba(255,0,60,0.35)', color: 'rgba(255,100,100,0.8)', background: 'rgba(255,0,60,0.06)', border: '1px solid rgba(255,0,60,0.25)' }}>
+                <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Logout</span>
+              </button>
             </div>
           </div>
-        </div>
-      </div>
-
-      <div className="p-2 border shadow-2xl bg-white/95 backdrop-blur-sm rounded-3xl border-white/30">
-        <nav className="flex flex-col gap-3 md:flex-row">
-          {tabs.map((tab, index) => {
-            const Icon = tab.icon
-            const isActive = activeTab === tab.id
-
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`group relative flex-1 flex items-center justify-center md:justify-start space-x-3 p-6 rounded-2xl font-semibold transition-all duration-300 ${isActive
-                  ? `bg-gradient-to-r ${tab.color} text-white shadow-xl scale-105`
-                  : 'text-gray-600 hover:text-white hover:bg-gradient-to-r hover:from-gray-600 hover:to-gray-700 hover:scale-102'
-                  }`}
-                style={{
-                  transitionDelay: `${index * 50}ms`
-                }}
-              >
-                <div className={`absolute inset-0 rounded-2xl bg-gradient-to-r ${tab.color} opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${isActive ? 'opacity-100' : ''}`}></div>
-
-                <div className="relative flex items-center space-x-3">
-                  <div className={`p-2 rounded-xl transition-all duration-300 ${isActive
-                    ? 'bg-white/20'
-                    : 'bg-gray-100 group-hover:bg-white/20'
-                    }`}>
-                    <Icon className={`w-6 h-6 transition-colors duration-300 ${isActive
-                      ? 'text-white'
-                      : 'text-gray-600 group-hover:text-white'
-                      }`} />
-                  </div>
-                  <div className="hidden text-left xl:block">
-                    <div className="text-lg font-bold">{tab.label}</div>
-                    <div className={`text-sm transition-colors duration-300 ${isActive
-                      ? 'text-white/80'
-                      : 'text-gray-500 group-hover:text-white/80'
-                      }`}>
-                      {tab.description}
-                    </div>
-                  </div>
-                  <div className="xl:hidden">
-                    <div className="text-sm font-bold">{tab.label}</div>
-                  </div>
-                </div>
-
-                {isActive && (
-                  <div className="absolute w-8 h-1 transform -translate-x-1/2 bg-white rounded-full -bottom-1 left-1/2"></div>
-                )}
-              </button>
-            )
-          })}
         </nav>
-      </div>
 
-      <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/30 min-h-[700px] relative overflow-hidden">
-        <div className="absolute inset-0 opacity-5">
-          <div
-            className="absolute inset-0"
-            style={{
-              backgroundImage: `url("data:image/svg+xml,${encodeURIComponent('<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><g fill="#3b82f6" fill-opacity="0.1"><polygon points="50 0 60 40 100 50 60 60 50 100 40 60 0 50 40 40"/></g></svg>')}")`
-            }}
-          ></div>
+        {/* ── Mobile Bottom Tab Bar ── */}
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex"
+          style={{ background: 'rgba(5,5,16,0.95)', backdropFilter: 'blur(20px)', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+          {tabs.map(({ id, shortLabel, Icon, color }) => (
+            <button key={id} onClick={() => setActiveTab(id)}
+              className="flex-1 flex flex-col items-center justify-center py-2.5 gap-1 transition-all"
+              style={activeTab === id ? { color } : { color: 'rgba(255,255,255,0.4)' }}>
+              <Icon className="w-5 h-5" />
+              <span className="text-[10px] font-semibold">{shortLabel}</span>
+            </button>
+          ))}
         </div>
 
-        <div className="relative p-8 md:p-12">
-          <div className={`transition-all duration-500 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            {activeTab === 'dashboard' && (
-              <div className="space-y-6">
-                <div className="flex items-center mb-8 space-x-4">
-                  <div className="p-4 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl">
-                    <BarChart3 className="w-8 h-8 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-3xl font-bold text-gray-900">Dashboard Overview</h2>
-                    <p className="text-gray-600">Monitor your business document activities</p>
-                  </div>
-                </div>
-                <Dashboard />
-              </div>
-            )}
+        {/* ── Page Content ── */}
+        {/* Add bottom padding on mobile to avoid content going behind tab bar */}
+        <div className="max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-24 md:pb-8">
 
-            {activeTab === 'invoice' && (
-              <div className="space-y-6">
-                <div className="flex items-center mb-8 space-x-4">
-                  <div className="p-4 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl">
-                    <Plus className="w-8 h-8 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-3xl font-bold text-gray-900">Create New Invoice</h2>
-                    <p className="text-gray-600">Generate professional invoices with digital signature</p>
-                  </div>
-                </div>
-                <InvoiceForm />
+          {/* Section header */}
+          {activeTabConfig && (
+            <div className="flex items-center space-x-3 sm:space-x-4 mb-5 sm:mb-8">
+              <div className="p-2 sm:p-3 rounded-xl sm:rounded-2xl"
+                style={{ background: `${activeTabConfig.color}12`, border: `1px solid ${activeTabConfig.color}25` }}>
+                <activeTabConfig.Icon className="w-5 h-5 sm:w-7 sm:h-7" style={{ color: activeTabConfig.color }} />
               </div>
-            )}
-
-            {activeTab === 'receipt' && (
-              <div className="space-y-6">
-                <div className="flex items-center mb-8 space-x-4">
-                  <div className="p-4 bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl">
-                    <Receipt className="w-8 h-8 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-3xl font-bold text-gray-900">Generate Receipt</h2>
-                    <p className="text-gray-600">Create payment receipts with electronic validation</p>
-                  </div>
-                </div>
-                <ReceiptForm />
+              <div>
+                <h2 className="text-lg sm:text-2xl font-extrabold text-white">{activeTabConfig.label}</h2>
               </div>
-            )}
+            </div>
+          )}
 
-            {activeTab === 'signature' && (
-              <div className="space-y-6">
-                <div className="flex items-center mb-8 space-x-4">
-                  <div className="p-4 bg-gradient-to-br from-pink-500 to-pink-600 rounded-2xl">
-                    <QrCode className="w-8 h-8 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-3xl font-bold text-gray-900">QR Code & TTD Dokumen</h2>
-                    <p className="text-gray-600">Buat validasi QR Code untuk surat menyurat, proposal, dan dokumen lainnya</p>
-                  </div>
-                </div>
-
-                <SignatureForm />
-              </div>
-            )}
-
-            {activeTab === 'documents' && (
-              <div className="space-y-6">
-                <div className="flex items-center mb-8 space-x-4">
-                  <div className="p-4 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl">
-                    <Download className="w-8 h-8 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-3xl font-bold text-gray-900">Document Management</h2>
-                    <p className="text-gray-600">Manage, download, and track all your documents</p>
-                  </div>
-                </div>
-                <DocumentList />
-              </div>
-            )}
+          <div className={`transition-all duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}>
+            {activeTab === 'dashboard' && <Dashboard />}
+            {activeTab === 'invoice' && <InvoiceForm />}
+            {activeTab === 'receipt' && <ReceiptForm />}
+            {activeTab === 'signature' && <SignatureForm />}
+            {activeTab === 'documents' && <DocumentList />}
           </div>
         </div>
       </div>

@@ -8,7 +8,7 @@ export default function SignaturePad({ onSignatureChange }) {
   const canvasRef = useRef(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [hasSignature, setHasSignature] = useState(false)
-  const [signatureType, setSignatureType] = useState('manual') // 'manual' or 'qr'
+  const [signatureType, setSignatureType] = useState('manual')
   const [qrCodeGenerated, setQrCodeGenerated] = useState(false)
   const [documentId, setDocumentId] = useState('')
   const [qrCodeData, setQrCodeData] = useState('')
@@ -18,145 +18,65 @@ export default function SignaturePad({ onSignatureChange }) {
     const canvas = canvasRef.current
     if (canvas) {
       const ctx = canvas.getContext('2d')
-
-      // Set canvas size
       canvas.width = canvas.offsetWidth
       canvas.height = 200
-
-      // Set drawing style
-      ctx.strokeStyle = '#1f2937'
-      ctx.lineWidth = 3
+      ctx.strokeStyle = '#00F0FF'
+      ctx.lineWidth = 2.5
       ctx.lineCap = 'round'
       ctx.lineJoin = 'round'
     }
   }, [])
 
-  const generateDocumentId = () => {
-    const timestamp = Date.now()
-    const random = Math.floor(Math.random() * 10000)
-    return `DOC-${timestamp}-${random}`
-  }
+  const generateDocumentId = () => `DOC-${Date.now()}-${Math.floor(Math.random() * 10000)}`
 
-  // Generate real QR Code using external API
   const generateRealQRCode = async (data) => {
     try {
-      // Using QR Server API to generate real scannable QR code
-      const encodedData = encodeURIComponent(data)
-      const size = 200
-      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodedData}&format=PNG&margin=10&bgcolor=ffffff&color=000000`
-
-      return qrUrl
-    } catch (error) {
-      console.error('Error generating QR code:', error)
-      return null
-    }
+      return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(data)}&format=PNG&margin=10&bgcolor=ffffff&color=000000`
+    } catch { return null }
   }
 
-  // Generate QR Code with Canvas (fallback)
   const generateQRCodeCanvas = (text) => {
     const canvas = document.createElement('canvas')
     const ctx = canvas.getContext('2d')
-    const size = 200
-    canvas.width = size
-    canvas.height = size
-
-    // White background
-    ctx.fillStyle = 'white'
-    ctx.fillRect(0, 0, size, size)
-
-    // Black modules
+    const size = 200; canvas.width = size; canvas.height = size
+    ctx.fillStyle = 'white'; ctx.fillRect(0, 0, size, size)
     ctx.fillStyle = 'black'
     const moduleSize = size / 25
-
-    // Generate a simple pattern based on the text
-    const textHash = text.split('').reduce((a, b) => {
-      a = ((a << 5) - a) + b.charCodeAt(0)
-      return a & a
-    }, 0)
-
+    const textHash = text.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a }, 0)
     for (let x = 0; x < 25; x++) {
       for (let y = 0; y < 25; y++) {
-        // Position detection patterns (corners)
         if ((x < 7 && y < 7) || (x > 17 && y < 7) || (x < 7 && y > 17)) {
-          if ((x === 0 || x === 6 || y === 0 || y === 6) ||
-            (x >= 2 && x <= 4 && y >= 2 && y <= 4)) {
+          if ((x === 0 || x === 6 || y === 0 || y === 6) || (x >= 2 && x <= 4 && y >= 2 && y <= 4))
             ctx.fillRect(x * moduleSize, y * moduleSize, moduleSize, moduleSize)
-          }
-        } else {
-          // Data pattern based on text content
-          if ((x + y + textHash) % 3 === 0) {
-            ctx.fillRect(x * moduleSize, y * moduleSize, moduleSize, moduleSize)
-          }
+        } else if ((x + y + textHash) % 3 === 0) {
+          ctx.fillRect(x * moduleSize, y * moduleSize, moduleSize, moduleSize)
         }
       }
     }
-
     return canvas.toDataURL('image/png')
   }
 
   const generateQRCode = async () => {
     const docId = generateDocumentId()
     setDocumentId(docId)
-
-    // Create validation URL with document data
     const baseUrl = `https://sign.luksurireka.com/validate/${docId}`
-    const qrData = JSON.stringify({
-      documentId: docId,
-      validationUrl: baseUrl,
+    setValidationUrl(baseUrl)
+    const meta = {
+      type: 'qr', documentId: docId, validationUrl: baseUrl,
       signedBy: 'LUDTANZA SURYA WIJAYA, S.Pd.',
       signerTitle: 'Chief Executive Officer',
-      timestamp: new Date().toISOString(),
-      company: 'PT LUKSURI REKA DIGITAL SOLUTIONS',
-      type: 'digital_signature_validation'
-    })
-
-    setValidationUrl(baseUrl)
-
+      timestamp: new Date().toISOString()
+    }
     try {
-      // Try to generate real QR code first
       const realQRUrl = await generateRealQRCode(baseUrl)
-
-      if (realQRUrl) {
-        setQrCodeData(realQRUrl)
-        console.log('Real QR code generated successfully')
-      } else {
-        // Fallback to canvas-generated QR
-        const canvasQR = generateQRCodeCanvas(baseUrl)
-        setQrCodeData(canvasQR)
-        console.log('Fallback QR code generated')
-      }
-
-      setQrCodeGenerated(true)
-      setHasSignature(true)
-
-      // Pass QR signature data to parent with complete metadata
-      onSignatureChange(qrCodeData || realQRUrl, {
-        type: 'qr',
-        documentId: docId,
-        validationUrl: baseUrl,
-        signedBy: 'LUDTANZA SURYA WIJAYA, S.Pd.',
-        signerTitle: 'Chief Executive Officer',
-        timestamp: new Date().toISOString(),
-        qrData: qrData
-      })
-
-    } catch (error) {
-      console.error('Error in QR generation process:', error)
-      // Use fallback method
+      const qrUrl = realQRUrl || generateQRCodeCanvas(baseUrl)
+      setQrCodeData(qrUrl)
+      setQrCodeGenerated(true); setHasSignature(true)
+      onSignatureChange(qrUrl, meta)
+    } catch {
       const fallbackQR = generateQRCodeCanvas(baseUrl)
-      setQrCodeData(fallbackQR)
-      setQrCodeGenerated(true)
-      setHasSignature(true)
-
-      onSignatureChange(fallbackQR, {
-        type: 'qr',
-        documentId: docId,
-        validationUrl: baseUrl,
-        signedBy: 'LUDTANZA SURYA WIJAYA, S.Pd.',
-        signerTitle: 'Chief Executive Officer',
-        timestamp: new Date().toISOString(),
-        qrData: qrData
-      })
+      setQrCodeData(fallbackQR); setQrCodeGenerated(true); setHasSignature(true)
+      onSignatureChange(fallbackQR, meta)
     }
   }
 
@@ -165,25 +85,16 @@ export default function SignaturePad({ onSignatureChange }) {
     const canvas = canvasRef.current
     const rect = canvas.getBoundingClientRect()
     const ctx = canvas.getContext('2d')
-
     ctx.beginPath()
-    ctx.moveTo(
-      e.clientX - rect.left,
-      e.clientY - rect.top
-    )
+    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top)
   }
 
   const draw = (e) => {
     if (!isDrawing) return
-
     const canvas = canvasRef.current
     const rect = canvas.getBoundingClientRect()
     const ctx = canvas.getContext('2d')
-
-    ctx.lineTo(
-      e.clientX - rect.left,
-      e.clientY - rect.top
-    )
+    ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top)
     ctx.stroke()
     setHasSignature(true)
   }
@@ -191,17 +102,9 @@ export default function SignaturePad({ onSignatureChange }) {
   const stopDrawing = () => {
     if (isDrawing) {
       setIsDrawing(false)
-      const canvas = canvasRef.current
-      const signatureData = canvas.toDataURL()
-
-      // Pass manual signature data with metadata
-      onSignatureChange(signatureData, {
-        type: 'manual',
-        documentId: null,
-        validationUrl: null,
-        signedBy: null,
-        signerTitle: null,
-        timestamp: new Date().toISOString()
+      onSignatureChange(canvasRef.current.toDataURL(), {
+        type: 'manual', documentId: null, validationUrl: null,
+        signedBy: null, signerTitle: null, timestamp: new Date().toISOString()
       })
     }
   }
@@ -209,25 +112,11 @@ export default function SignaturePad({ onSignatureChange }) {
   const clearSignature = () => {
     if (signatureType === 'manual') {
       const canvas = canvasRef.current
-      const ctx = canvas.getContext('2d')
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height)
     }
-
-    setHasSignature(false)
-    setQrCodeGenerated(false)
-    setDocumentId('')
-    setQrCodeData('')
-    setValidationUrl('')
-
-    // Clear signature with metadata
-    onSignatureChange('', {
-      type: signatureType,
-      documentId: null,
-      validationUrl: null,
-      signedBy: null,
-      signerTitle: null,
-      timestamp: null
-    })
+    setHasSignature(false); setQrCodeGenerated(false)
+    setDocumentId(''); setQrCodeData(''); setValidationUrl('')
+    onSignatureChange('', { type: signatureType, documentId: null, validationUrl: null, signedBy: null, signerTitle: null, timestamp: null })
   }
 
   const copyValidationUrl = () => {
@@ -235,228 +124,167 @@ export default function SignaturePad({ onSignatureChange }) {
     alert('Validation URL copied to clipboard!')
   }
 
-  const openValidationUrl = () => {
-    window.open(validationUrl, '_blank')
-  }
-
   return (
-    <div className="space-y-6">
-      {/* Signature Type Selector */}
-      <div className="flex items-center p-4 space-x-4 bg-gray-50 rounded-2xl">
-        <span className="text-sm font-bold text-gray-700">Signature Method:</span>
-        <div className="flex space-x-2">
-          <button
-            type="button"
-            onClick={() => {
-              setSignatureType('manual')
-              clearSignature()
-            }}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-xl font-semibold transition-all duration-200 ${signatureType === 'manual'
-              ? 'bg-blue-500 text-white shadow-lg'
-              : 'bg-white text-gray-600 hover:bg-gray-100'
-              }`}
-          >
-            <PenTool className="w-4 h-4" />
-            <span>Manual Signature</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setSignatureType('qr')
-              clearSignature()
-            }}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-xl font-semibold transition-all duration-200 ${signatureType === 'qr'
-              ? 'bg-green-500 text-white shadow-lg'
-              : 'bg-white text-gray-600 hover:bg-gray-100'
-              }`}
-          >
-            <QrCode className="w-4 h-4" />
-            <span>QR Digital Signature</span>
-          </button>
+    <div className="space-y-5">
+      {/* Type Selector */}
+      <div className="p-3 rounded-2xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.5)' }}>Method:</span>
+          <div className="flex gap-2 flex-1">
+            {[
+              { type: 'manual', Icon: PenTool, label: 'Manual', activeColor: '#00F0FF' },
+              { type: 'qr', Icon: QrCode, label: 'QR Digital', activeColor: '#00FF88' },
+            ].map(({ type: t, Icon, label, activeColor }) => (
+              <button key={t} type="button"
+                onClick={() => { setSignatureType(t); clearSignature() }}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl font-semibold text-xs flex-1 justify-center transition-all"
+                style={signatureType === t
+                  ? { background: `${activeColor}15`, color: activeColor, border: `1px solid ${activeColor}40` }
+                  : { background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                <Icon className="w-3.5 h-3.5" /><span>{label}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Manual Signature Canvas */}
+      {/* Manual Canvas */}
       {signatureType === 'manual' && (
-        <div className="space-y-4">
-          <div className="relative">
-            <canvas
-              ref={canvasRef}
-              className="w-full h-48 transition-colors duration-200 bg-white border-2 border-gray-300 border-dashed rounded-2xl cursor-crosshair hover:border-blue-400"
-              onMouseDown={startDrawing}
-              onMouseMove={draw}
-              onMouseUp={stopDrawing}
-              onMouseLeave={stopDrawing}
-            />
-            <div className="absolute flex items-center space-x-2 text-sm text-gray-500 pointer-events-none top-4 left-4">
-              <PenTool className="w-4 h-4" />
-              <span>Draw your signature here</span>
+        <div className="relative">
+          <canvas
+            ref={canvasRef}
+            className="w-full h-44 sm:h-48 rounded-2xl cursor-crosshair touch-none"
+            style={{ background: 'rgba(0,0,0,0.30)', border: '1.5px dashed rgba(0,240,255,0.30)' }}
+            onMouseDown={startDrawing} onMouseMove={draw}
+            onMouseUp={stopDrawing} onMouseLeave={stopDrawing}
+            onTouchStart={(e) => { e.preventDefault(); const t = e.touches[0]; startDrawing({ clientX: t.clientX, clientY: t.clientY }) }}
+            onTouchMove={(e) => { e.preventDefault(); const t = e.touches[0]; draw({ clientX: t.clientX, clientY: t.clientY }) }}
+            onTouchEnd={stopDrawing}
+          />
+          {!hasSignature && (
+            <div className="absolute top-4 left-4 flex items-center space-x-2 pointer-events-none">
+              <PenTool className="w-4 h-4" style={{ color: 'rgba(0,240,255,0.3)' }} />
+              <span className="text-xs sm:text-sm" style={{ color: 'rgba(0,240,255,0.3)' }}>Draw your signature here</span>
             </div>
-          </div>
+          )}
         </div>
       )}
 
-      {/* QR Code Digital Signature */}
+      {/* QR Section */}
       {signatureType === 'qr' && (
-        <div className="space-y-6">
+        <div className="space-y-5">
           {!qrCodeGenerated ? (
-            <div className="p-8 text-center border-2 border-green-300 border-dashed bg-gradient-to-br from-green-50 to-blue-50 rounded-2xl">
-              <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-green-500/10 rounded-2xl">
-                <QrCode className="w-8 h-8 text-green-600" />
+            <div className="p-8 text-center rounded-2xl"
+              style={{ background: 'rgba(0,255,136,0.04)', border: '1.5px dashed rgba(0,255,136,0.25)' }}>
+              <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center rounded-2xl"
+                style={{ background: 'rgba(0,255,136,0.10)', border: '1px solid rgba(0,255,136,0.25)' }}>
+                <QrCode className="w-8 h-8" style={{ color: '#00FF88' }} />
               </div>
-              <h4 className="mb-2 text-lg font-bold text-gray-900">Generate Real QR Digital Signature</h4>
-              <p className="max-w-md mx-auto mb-6 text-gray-600">
-                Create a scannable QR code that validates this document's authenticity and digital signature by LUDTANZA SURYA WIJAYA, S.Pd.
+              <h4 className="font-bold text-white mb-2">Generate Real QR Digital Signature</h4>
+              <p className="text-sm mb-6 max-w-md mx-auto" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                Create a scannable QR code that validates this document's authenticity, signed by LUDTANZA SURYA WIJAYA, S.Pd.
               </p>
-              <button
-                type="button"
-                onClick={generateQRCode}
-                className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-500 to-blue-600 text-white rounded-2xl font-semibold hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5"
-              >
-                <Shield className="w-5 h-5" />
-                <span>Generate Scannable QR Code</span>
+              <button type="button" onClick={generateQRCode} className="neon-button-solid"
+                style={{ borderColor: 'rgba(0,255,136,0.5)', color: '#00FF88', background: 'rgba(0,255,136,0.12)' }}>
+                <Shield className="w-4 h-4" /> Generate Scannable QR Code
               </button>
             </div>
           ) : (
-            <div className="p-8 bg-white border-2 border-green-200 shadow-lg rounded-2xl">
-              <div className="space-y-6">
-                <div className="flex items-center justify-center mb-4 space-x-2">
-                  <Check className="w-6 h-6 text-green-600" />
-                  <h4 className="text-lg font-bold text-green-800">Scannable QR Digital Signature Generated</h4>
-                </div>
+            <div className="p-7 rounded-2xl space-y-5"
+              style={{ background: 'rgba(0,255,136,0.04)', border: '1px solid rgba(0,255,136,0.20)' }}>
+              <div className="flex items-center justify-center space-x-2">
+                <Check className="w-5 h-5" style={{ color: '#00FF88' }} />
+                <h4 className="font-bold" style={{ color: '#00FF88' }}>Scannable QR Digital Signature Generated</h4>
+              </div>
 
-                {/* QR Code Display */}
-                <div className="flex justify-center">
-                  <div className="p-6 bg-white border-2 border-gray-200 shadow-lg rounded-3xl">
-                    <img
-                      src={qrCodeData}
-                      alt="Scannable QR Code Digital Signature"
-                      className="w-48 h-48 mx-auto"
-                      style={{ imageRendering: 'pixelated' }}
-                    />
-                    <p className="mt-3 text-xs font-bold tracking-wide text-center text-gray-600 uppercase">
-                      Scan with any QR scanner
-                    </p>
-                  </div>
-                </div>
-
-                {/* Test QR Code Section */}
-                <div className="p-4 border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-blue-900">Test QR Code:</p>
-                      <p className="text-xs text-blue-700">Scan to verify or click to test validation</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={openValidationUrl}
-                      className="flex items-center px-4 py-2 space-x-2 text-white transition-colors duration-200 bg-blue-500 rounded-lg hover:bg-blue-600"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      <span>Test</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Signature Details */}
-                <div className="p-6 text-left bg-gray-50 rounded-2xl">
-                  <h5 className="mb-4 font-bold text-gray-900">Digital Signature Details:</h5>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Signed by:</span>
-                      <span className="font-semibold text-gray-900">LUDTANZA SURYA WIJAYA, S.Pd.</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Title:</span>
-                      <span className="font-semibold text-gray-900">Chief Executive Officer</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Company:</span>
-                      <span className="font-semibold text-gray-900">PT LUKSURI REKA DIGITAL SOLUTIONS</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Document ID:</span>
-                      <span className="font-mono text-xs text-gray-900">{documentId}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Timestamp:</span>
-                      <span className="font-mono text-xs text-gray-900">{new Date().toLocaleString('id-ID')}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Validation URL */}
-                <div className="p-4 bg-blue-50 rounded-2xl">
-                  <div className="flex items-center justify-between">
-                    <div className="text-left">
-                      <p className="text-sm font-semibold text-blue-900">Validation URL:</p>
-                      <p className="font-mono text-xs text-blue-700 break-all">
-                        {validationUrl}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={copyValidationUrl}
-                      className="p-2 ml-4 text-white transition-colors duration-200 bg-blue-500 rounded-lg hover:bg-blue-600"
-                    >
-                      <Copy className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* PDF Integration Notice */}
-                <div className="p-4 bg-amber-50 rounded-2xl">
-                  <h5 className="mb-2 text-sm font-bold text-amber-900">PDF Integration:</h5>
-                  <p className="text-xs text-amber-700">
-                    This scannable QR code will be automatically embedded in your generated PDF document.
-                    Anyone can scan it to verify the digital signature authenticity.
+              <div className="flex justify-center">
+                <div className="p-5 rounded-2xl" style={{ background: '#fff', border: '2px solid rgba(0,240,255,0.30)' }}>
+                  <img src={qrCodeData} alt="QR Code Digital Signature" className="w-48 h-48 mx-auto"
+                    style={{ imageRendering: 'pixelated' }} />
+                  <p className="mt-2 text-xs font-bold tracking-widest text-center uppercase" style={{ color: '#333' }}>
+                    Scan to verify
                   </p>
                 </div>
+              </div>
+
+              {/* Details */}
+              <div className="p-5 rounded-2xl" style={{ background: 'rgba(0,0,0,0.20)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <h5 className="font-bold text-white mb-3 text-sm">Digital Signature Details:</h5>
+                <div className="space-y-2 text-xs">
+                  {[
+                    { label: 'Signed by', value: 'LUDTANZA SURYA WIJAYA, S.Pd.' },
+                    { label: 'Title', value: 'Chief Executive Officer' },
+                    { label: 'Company', value: 'PT LUKSURI REKA DIGITAL SOLUTIONS' },
+                    { label: 'Document ID', value: documentId, mono: true },
+                    { label: 'Timestamp', value: new Date().toLocaleString('id-ID'), mono: true },
+                  ].map(({ label, value, mono }) => (
+                    <div key={label} className="flex justify-between gap-4">
+                      <span style={{ color: 'rgba(0,240,255,0.55)' }}>{label}:</span>
+                      <span className={`font-semibold text-white text-right ${mono ? 'font-mono-luksuri' : ''}`}>{value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Validation URL */}
+              <div className="flex items-center justify-between p-4 rounded-xl"
+                style={{ background: 'rgba(0,240,255,0.05)', border: '1px solid rgba(0,240,255,0.15)' }}>
+                <div>
+                  <p className="text-xs font-semibold" style={{ color: 'rgba(0,240,255,0.7)' }}>Validation URL:</p>
+                  <p className="font-mono-luksuri text-xs break-all mt-0.5 text-white">{validationUrl}</p>
+                </div>
+                <div className="flex gap-2 ml-4 flex-shrink-0">
+                  <button type="button" onClick={copyValidationUrl}
+                    className="p-2 rounded-lg transition-all" style={{ background: 'rgba(0,240,255,0.10)', color: '#00F0FF' }}>
+                    <Copy className="w-4 h-4" />
+                  </button>
+                  <button type="button" onClick={() => window.open(validationUrl, '_blank')}
+                    className="p-2 rounded-lg transition-all" style={{ background: 'rgba(0,240,255,0.10)', color: '#00F0FF' }}>
+                    <ExternalLink className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Notice */}
+              <div className="p-4 rounded-xl text-xs" style={{ background: 'rgba(0,240,255,0.05)', border: '1px solid rgba(0,240,255,0.12)' }}>
+                <p className="font-semibold mb-1" style={{ color: 'rgba(0,240,255,0.8)' }}>PDF Integration:</p>
+                <p style={{ color: 'rgba(255,255,255,0.45)' }}>
+                  This QR code will be automatically embedded in your generated PDF document for authenticity verification.
+                </p>
               </div>
             </div>
           )}
         </div>
       )}
 
-      {/* Status and Actions */}
-      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
-        <div className="flex items-center space-x-2">
-          {hasSignature && (
-            <Check className="w-5 h-5 text-green-600" />
-          )}
-          <p className="text-sm font-semibold text-gray-700">
+      {/* Status + Clear */}
+      <div className="flex items-center justify-between gap-3 p-3 sm:p-4 rounded-2xl"
+        style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+        <div className="flex items-center space-x-2 min-w-0">
+          {hasSignature && <Check className="w-4 h-4 flex-shrink-0" style={{ color: '#00FF88' }} />}
+          <p className="text-xs sm:text-sm font-semibold truncate" style={{ color: hasSignature ? '#fff' : 'rgba(255,255,255,0.4)' }}>
             {hasSignature
-              ? signatureType === 'qr'
-                ? 'Scannable QR Digital Signature Ready for PDF'
-                : 'Manual Signature Captured'
-              : 'No Signature Added'
-            }
+              ? signatureType === 'qr' ? 'QR Signature Ready' : 'Manual Signature Captured'
+              : 'No Signature Added'}
           </p>
         </div>
-
         {hasSignature && (
-          <button
-            type="button"
-            onClick={clearSignature}
-            className="flex items-center px-4 py-2 space-x-2 text-red-600 transition-colors duration-200 bg-white border border-red-300 rounded-xl hover:bg-red-50"
-          >
-            <RotateCcw className="w-4 h-4" />
-            <span>Clear</span>
+          <button type="button" onClick={clearSignature} className="neon-button text-xs"
+            style={{ borderColor: 'rgba(255,0,60,0.35)', color: '#FF003C', background: 'rgba(255,0,60,0.08)', padding: '0.4rem 0.85rem' }}>
+            <RotateCcw className="w-3 h-3" /> Clear
           </button>
         )}
       </div>
 
       {/* Security Notice */}
-      <div className="p-4 border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl">
+      <div className="p-4 rounded-2xl" style={{ background: 'rgba(0,240,255,0.04)', border: '1px solid rgba(0,240,255,0.12)' }}>
         <div className="flex items-start space-x-3">
-          <Shield className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-          <div className="text-sm">
-            <p className="mb-1 font-semibold text-blue-900">Enhanced Security Notice</p>
-            <p className="text-blue-700">
-              QR Digital Signatures provide enhanced security and verification.
-              The generated QR code is fully scannable and will redirect to a validation page
-              that confirms document authenticity and authorization by LUDTANZA SURYA WIJAYA, S.Pd.
-              as company director. The QR code will be embedded directly in your PDF document.
+          <Shield className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: 'rgba(0,240,255,0.6)' }} />
+          <div className="text-xs">
+            <p className="font-semibold mb-1" style={{ color: 'rgba(0,240,255,0.8)' }}>Enhanced Security Notice</p>
+            <p style={{ color: 'rgba(255,255,255,0.4)' }}>
+              QR Digital Signatures provide enhanced security. The generated QR code is fully scannable and redirects to
+              a validation page confirming document authenticity, authorized by LUDTANZA SURYA WIJAYA, S.Pd. (CEO).
             </p>
           </div>
         </div>

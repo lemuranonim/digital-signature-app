@@ -15,75 +15,37 @@ export default function DocumentList() {
   const [dateFilter, setDateFilter] = useState('')
   const [isDownloading, setIsDownloading] = useState(null)
 
-  useEffect(() => {
-    loadDocuments()
-  }, [])
+  useEffect(() => { loadDocuments() }, [])
 
   const loadDocuments = async () => {
     setLoading(true)
     try {
-      // Load invoices with items
       const { data: invoices, error: invoiceError } = await supabase
         .from('invoices')
-        .select(`
-          *,
-          invoice_items (
-            id,
-            description,
-            quantity,
-            unit_price
-          )
-        `)
+        .select('*, invoice_items(id, description, quantity, unit_price)')
         .order('created_at', { ascending: false })
+      if (invoiceError) throw invoiceError
 
-      if (invoiceError) {
-        console.error('Invoice loading error:', invoiceError)
-        throw invoiceError
-      }
-
-      // Load receipts with invoice reference
       const { data: receipts, error: receiptError } = await supabase
         .from('receipts')
-        .select(`
-          *,
-          invoices (
-            invoice_number,
-            client_name
-          )
-        `)
+        .select('*, invoices(invoice_number, client_name)')
         .order('created_at', { ascending: false })
+      if (receiptError) throw receiptError
 
-      if (receiptError) {
-        console.error('Receipt loading error:', receiptError)
-        throw receiptError
-      }
-
-      // Combine and format documents
       const allDocuments = [
-        ...(invoices || []).map(invoice => ({
-          ...invoice,
-          type: 'invoice',
-          title: `Invoice ${invoice.invoice_number}`,
-          client: invoice.client_name,
-          amount: invoice.total_amount,
-          date: invoice.issue_date,
-          status: invoice.status || 'draft'
+        ...(invoices || []).map(inv => ({
+          ...inv, type: 'invoice', title: `Invoice ${inv.invoice_number}`,
+          client: inv.client_name, amount: inv.total_amount,
+          date: inv.issue_date, status: inv.status || 'draft'
         })),
-        ...(receipts || []).map(receipt => ({
-          ...receipt,
-          type: 'receipt',
-          title: `Kwitansi ${receipt.receipt_number}`,
-          client: receipt.payer_name,
-          amount: receipt.amount_received,
-          date: receipt.payment_date,
-          status: 'paid'
+        ...(receipts || []).map(rec => ({
+          ...rec, type: 'receipt', title: `Kwitansi ${rec.receipt_number}`,
+          client: rec.payer_name, amount: rec.amount_received,
+          date: rec.payment_date, status: 'paid'
         }))
-      ]
+      ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 
-      // Sort by creation date
-      allDocuments.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
       setDocuments(allDocuments)
-
     } catch (error) {
       console.error('Error loading documents:', error)
       alert(`Terjadi kesalahan saat memuat dokumen: ${error.message}`)
@@ -94,146 +56,72 @@ export default function DocumentList() {
 
   const filteredDocuments = documents.filter(doc => {
     const matchesSearch = doc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         doc.client.toLowerCase().includes(searchTerm.toLowerCase())
+      doc.client.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesType = filterType === 'all' || doc.type === filterType
     const matchesStatus = filterStatus === 'all' || doc.status === filterStatus
     const matchesDate = !dateFilter || doc.date.includes(dateFilter)
-    
     return matchesSearch && matchesType && matchesStatus && matchesDate
   })
 
   const handleRegenerate = async (document) => {
     setIsDownloading(document.id)
-    
     try {
-      console.log('Regenerating document:', document)
-
       if (document.type === 'invoice') {
-        // Validate required fields
-        if (!document.invoice_number || !document.client_name) {
-          throw new Error('Data invoice tidak lengkap')
-        }
-
-        // Ensure we have items, if not create a placeholder
+        if (!document.invoice_number || !document.client_name) throw new Error('Data invoice tidak lengkap')
         let invoiceItems = document.invoice_items || []
-        if (invoiceItems.length === 0) {
-          invoiceItems = [{
-            description: 'Layanan Digital',
-            quantity: 1,
-            unit_price: document.total_amount || 0
-          }]
-        }
-
-        // Prepare invoice data with proper field mapping
-        const invoiceData = {
-          invoiceNumber: document.invoice_number,
-          clientName: document.client_name,
-          clientEmail: document.client_email || '',
-          clientAddress: document.client_address || '',
-          clientPhone: document.client_phone || '',
-          clientTaxId: document.client_tax_id || '',
-          issueDate: document.issue_date,
-          dueDate: document.due_date,
-          items: invoiceItems.map(item => ({
-            description: item.description || '',
-            quantity: item.quantity || 1,
-            unitPrice: item.unit_price || 0
-          })),
-          subtotal: document.subtotal || 0,
-          taxAmount: document.tax_amount || 0,
-          discountAmount: document.discount_amount || 0,
-          total: document.total_amount || 0,
-          notes: document.notes || '',
-          taxRate: 11,
-
-          signature: document.signature_data || null,
+        if (invoiceItems.length === 0) invoiceItems = [{ description: 'Layanan Digital', quantity: 1, unit_price: document.total_amount || 0 }]
+        await generateInvoicePDF({
+          invoiceNumber: document.invoice_number, clientName: document.client_name,
+          clientEmail: document.client_email || '', clientAddress: document.client_address || '',
+          clientPhone: document.client_phone || '', clientTaxId: document.client_tax_id || '',
+          issueDate: document.issue_date, dueDate: document.due_date,
+          items: invoiceItems.map(i => ({ description: i.description || '', quantity: i.quantity || 1, unitPrice: i.unit_price || 0 })),
+          subtotal: document.subtotal || 0, taxAmount: document.tax_amount || 0,
+          discountAmount: document.discount_amount || 0, total: document.total_amount || 0,
+          notes: document.notes || '', taxRate: 11, signature: document.signature_data || null,
           signatureType: document.signature_type || 'manual',
           signatureMetadata: {
-            type: document.signature_type || 'manual',
-            documentId: document.qr_document_id || null,
-            validationUrl: document.qr_validation_url || null,
-            signedBy: document.qr_signed_by || null,
-            signerTitle: document.qr_signer_title || null,
-            timestamp: document.qr_timestamp || null
+            type: document.signature_type || 'manual', documentId: document.qr_document_id || null,
+            validationUrl: document.qr_validation_url || null, signedBy: document.qr_signed_by || null,
+            signerTitle: document.qr_signer_title || null, timestamp: document.qr_timestamp || null
           }
-        }
-
-        console.log('Invoice data prepared:', invoiceData)
-        await generateInvoicePDF(invoiceData)
-
+        })
       } else if (document.type === 'receipt') {
-        // Validate required fields
-        if (!document.receipt_number || !document.payer_name) {
-          throw new Error('Data kwitansi tidak lengkap')
-        }
-
-        // Get related invoice data if exists
+        if (!document.receipt_number || !document.payer_name) throw new Error('Data kwitansi tidak lengkap')
         let invoiceData = null
         if (document.invoice_id) {
-          const { data, error } = await supabase
-            .from('invoices')
-            .select('invoice_number, client_name')
-            .eq('id', document.invoice_id)
-            .single()
-          
-          if (!error && data) {
-            invoiceData = data
-          }
+          const { data, error } = await supabase.from('invoices').select('invoice_number, client_name').eq('id', document.invoice_id).single()
+          if (!error && data) invoiceData = data
         }
-
-        // Prepare receipt data with proper field mapping
-        const receiptData = {
-          receiptNumber: document.receipt_number,
-          payerName: document.payer_name,
-          payerAddress: document.payer_address || '',
-          amountReceived: document.amount_received || 0,
-          amountWords: document.amount_words || '',
-          paymentMethod: document.payment_method || 'Transfer Bank',
-          paymentDate: document.payment_date,
-          description: document.description || '',
-          invoiceData: invoiceData,
-
-          signature: document.signature_data || null,
-          signatureType: document.signature_type || 'manual',
+        await generateReceiptPDF({
+          receiptNumber: document.receipt_number, payerName: document.payer_name,
+          payerAddress: document.payer_address || '', amountReceived: document.amount_received || 0,
+          amountWords: document.amount_words || '', paymentMethod: document.payment_method || 'Transfer Bank',
+          paymentDate: document.payment_date, description: document.description || '', invoiceData,
+          signature: document.signature_data || null, signatureType: document.signature_type || 'manual',
           signatureMetadata: {
-            type: document.signature_type || 'manual',
-            documentId: document.qr_document_id || null,
-            validationUrl: document.qr_validation_url || null,
-            signedBy: document.qr_signed_by || null,
-            signerTitle: document.qr_signer_title || null,
-            timestamp: document.qr_timestamp || null
+            type: document.signature_type || 'manual', documentId: document.qr_document_id || null,
+            validationUrl: document.qr_validation_url || null, signedBy: document.qr_signed_by || null,
+            signerTitle: document.qr_signer_title || null, timestamp: document.qr_timestamp || null
           }
-        }
-
-        console.log('Receipt data prepared:', receiptData)
-        await generateReceiptPDF(receiptData)
+        })
       }
-
-      // Show success message
-      const successMsg = `${document.type === 'invoice' ? 'Invoice' : 'Kwitansi'} berhasil diunduh!`
-      alert(successMsg)
-
+      alert(`${document.type === 'invoice' ? 'Invoice' : 'Kwitansi'} berhasil diunduh!`)
     } catch (error) {
       console.error('Error regenerating document:', error)
-      
-      // Show detailed error message
-      let errorMsg = 'Terjadi kesalahan saat mengunduh dokumen'
-      if (error.message) {
-        errorMsg += `: ${error.message}`
-      }
-      alert(errorMsg)
+      alert(`Terjadi kesalahan saat mengunduh dokumen: ${error.message || ''}`)
     } finally {
       setIsDownloading(null)
     }
   }
 
-  const getStatusColor = (status) => {
+  const getBadgeClass = (status) => {
     switch (status) {
-      case 'draft': return 'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 border-gray-300'
-      case 'issued': return 'bg-gradient-to-r from-blue-100 to-indigo-200 text-blue-900 border-blue-300'
-      case 'paid': return 'bg-gradient-to-r from-green-100 to-emerald-200 text-green-900 border-green-300'
-      case 'overdue': return 'bg-gradient-to-r from-red-100 to-rose-200 text-red-900 border-red-300'
-      default: return 'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 border-gray-300'
+      case 'draft': return 'badge badge-draft'
+      case 'issued': return 'badge badge-issued'
+      case 'paid': return 'badge badge-paid'
+      case 'overdue': return 'badge badge-overdue'
+      default: return 'badge badge-draft'
     }
   }
 
@@ -255,297 +143,192 @@ export default function DocumentList() {
   const formatDate = (dateString) => {
     if (!dateString) return '-'
     try {
-      return new Date(dateString).toLocaleDateString('id-ID', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric'
-      })
-    } catch (error) {
-      return dateString
-    }
+      return new Date(dateString).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+    } catch { return dateString }
   }
 
-  const getTotalValue = () => {
-    return filteredDocuments.reduce((sum, doc) => sum + (doc.amount || 0), 0)
-  }
+  const getTotalValue = () => filteredDocuments.reduce((sum, doc) => sum + (doc.amount || 0), 0)
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <div className="relative w-16 h-16 mx-auto mb-4">
-            <div className="absolute inset-0 border-4 border-blue-200 rounded-full"></div>
-            <div className="absolute inset-0 border-4 border-transparent rounded-full border-t-blue-600 animate-spin"></div>
-          </div>
-          <h3 className="text-lg font-semibold text-gray-700">Memuat Dokumen</h3>
-          <p className="text-gray-500">Sedang mengambil data dari database...</p>
+        <div className="text-center space-y-4">
+          <div className="neon-spinner mx-auto" />
+          <p className="font-semibold text-white">Memuat Dokumen</p>
+          <p className="text-sm" style={{ color: 'rgba(0,240,255,0.5)' }}>Sedang mengambil data dari database...</p>
         </div>
       </div>
     )
   }
 
+  const miniStats = [
+    { label: 'Total Invoice', value: documents.filter(d => d.type === 'invoice').length, Icon: FileText, color: '#00F0FF' },
+    { label: 'Total Kwitansi', value: documents.filter(d => d.type === 'receipt').length, Icon: Receipt, color: '#00FF88' },
+    {
+      label: 'Bulan Ini',
+      value: documents.filter(d => {
+        if (!d.date) return false
+        try { const dd = new Date(d.date); const n = new Date(); return dd.getMonth() === n.getMonth() && dd.getFullYear() === n.getFullYear() } catch { return false }
+      }).length,
+      Icon: Calendar, color: '#FFBE0B'
+    },
+    { label: 'Ditampilkan', value: filteredDocuments.length, Icon: Filter, color: '#a78bfa' }
+  ]
+
   return (
     <div className="space-y-8">
-      {/* Header Section */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-indigo-700 to-purple-800 rounded-3xl">
-        <div className="absolute inset-0 bg-black/10"></div>
-        <div className="relative p-8">
-          <div className="flex items-center justify-between">
+
+      {/* Header */}
+      <div className="glass-card relative overflow-hidden p-5 sm:p-8">
+        <div className="absolute top-0 right-0 w-64 h-64 rounded-full blur-3xl opacity-10"
+          style={{ background: 'radial-gradient(circle, #00F0FF 0%, transparent 70%)' }} />
+        <div className="relative flex items-center justify-between gap-3">
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 sm:p-3 rounded-2xl flex-shrink-0" style={{ background: 'rgba(0,240,255,0.12)', border: '1px solid rgba(0,240,255,0.25)' }}>
+              <Download className="w-5 h-5 sm:w-8 sm:h-8" style={{ color: '#00F0FF' }} />
+            </div>
             <div>
-              <div className="flex items-center mb-4 space-x-3">
-                <div className="p-3 bg-white/20 backdrop-blur-sm rounded-2xl">
-                  <Download className="w-8 h-8 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-3xl font-bold text-white">Daftar Dokumen</h2>
-                  <p className="text-blue-100">Kelola semua invoice dan kwitansi Anda</p>
-                </div>
+              <h2 className="text-xl sm:text-3xl font-bold text-white">Daftar Dokumen</h2>
+              <p className="text-xs sm:text-sm mt-0.5" style={{ color: 'rgba(0,240,255,0.6)' }}>Kelola semua invoice dan kwitansi Anda</p>
+            </div>
+          </div>
+          <div className="text-right flex-shrink-0">
+            <p className="text-[10px] sm:text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>Total Nilai</p>
+            <p className="text-lg sm:text-2xl font-bold text-white font-mono-luksuri">{formatCurrency(getTotalValue())}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Mini Stats */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-4">
+        {miniStats.map(({ label, value, Icon, color }, idx) => (
+          <div key={idx} className="glass-card p-4 sm:p-6 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-20 h-20 rounded-full blur-xl opacity-15"
+              style={{ background: `radial-gradient(circle, ${color} 0%, transparent 70%)` }} />
+            <div className="relative flex items-center justify-between">
+              <div>
+                <p className="text-[10px] sm:text-xs font-bold uppercase tracking-widest mb-1" style={{ color: `${color}99` }}>{label}</p>
+                <p className="text-2xl sm:text-3xl font-bold text-white">{value}</p>
+              </div>
+              <div className="p-2 sm:p-3 rounded-xl" style={{ background: `${color}12`, border: `1px solid ${color}20` }}>
+                <Icon className="w-5 h-5 sm:w-7 sm:h-7" style={{ color }} />
               </div>
             </div>
-            <div className="text-right">
-              <p className="text-sm font-medium text-blue-100">Total Nilai</p>
-              <p className="text-3xl font-bold text-white">{formatCurrency(getTotalValue())}</p>
-            </div>
           </div>
-        </div>
+        ))}
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
-        <div className="p-6 border border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold tracking-wide text-blue-600 uppercase">Total Invoice</p>
-              <p className="text-3xl font-bold text-blue-900">
-                {documents.filter(d => d.type === 'invoice').length}
-              </p>
-            </div>
-            <div className="p-3 bg-blue-500/20 rounded-xl">
-              <FileText className="w-8 h-8 text-blue-600" />
-            </div>
-          </div>
-        </div>
-        
-        <div className="p-6 border bg-gradient-to-br from-amber-50 to-amber-100 rounded-2xl border-amber-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold tracking-wide uppercase text-amber-600">Total Kwitansi</p>
-              <p className="text-3xl font-bold text-amber-900">
-                {documents.filter(d => d.type === 'receipt').length}
-              </p>
-            </div>
-            <div className="p-3 bg-amber-500/20 rounded-xl">
-              <Receipt className="w-8 h-8 text-amber-600" />
-            </div>
-          </div>
-        </div>
-        
-        <div className="p-6 border border-green-200 bg-gradient-to-br from-green-50 to-green-100 rounded-2xl">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold tracking-wide text-green-600 uppercase">Bulan Ini</p>
-              <p className="text-3xl font-bold text-green-900">
-                {documents.filter(d => {
-                  if (!d.date) return false
-                  try {
-                    const docDate = new Date(d.date)
-                    const now = new Date()
-                    return docDate.getMonth() === now.getMonth() && 
-                           docDate.getFullYear() === now.getFullYear()
-                  } catch {
-                    return false
-                  }
-                }).length}
-              </p>
-            </div>
-            <div className="p-3 bg-green-500/20 rounded-xl">
-              <Calendar className="w-8 h-8 text-green-600" />
-            </div>
-          </div>
-        </div>
-        
-        <div className="p-6 border border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold tracking-wide text-purple-600 uppercase">Ditampilkan</p>
-              <p className="text-3xl font-bold text-purple-900">
-                {filteredDocuments.length}
-              </p>
-            </div>
-            <div className="p-3 bg-purple-500/20 rounded-xl">
-              <Filter className="w-8 h-8 text-purple-600" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters Section */}
-      <div className="p-8 border shadow-xl bg-white/80 backdrop-blur-sm rounded-3xl border-gray-200/50">
-        <h3 className="mb-6 text-lg font-semibold text-gray-900">Filter & Pencarian</h3>
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
-          <div className="relative">
-            <label className="block mb-3 text-sm font-semibold text-gray-700">
-              Cari Dokumen
-            </label>
+      {/* Filters */}
+      <div className="glass-card p-4 sm:p-7">
+        <h3 className="text-sm sm:text-base font-bold text-white mb-4 sm:mb-5">Filter &amp; Pencarian</h3>
+        <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-4">
+          <div className="col-span-2 sm:col-span-1">
+            <label className="block mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(0,240,255,0.7)' }}>Cari Dokumen</label>
             <div className="relative">
-              <Search className="absolute w-5 h-5 text-gray-400 transform -translate-y-1/2 left-4 top-1/2" />
+              <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4" style={{ color: 'rgba(0,240,255,0.5)' }} />
               <input
-                type="text"
-                value={searchTerm}
+                type="text" value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full py-3 pl-12 pr-4 transition-all duration-200 border-2 border-gray-200 bg-white/90 rounded-2xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-                placeholder="Cari nomor atau nama klien..."
+                className="neon-input pl-9 sm:pl-11 text-xs sm:text-sm"
+                placeholder="Nomor atau nama klien..."
               />
             </div>
           </div>
-          
           <div>
-            <label className="block mb-3 text-sm font-semibold text-gray-700">
-              Jenis Dokumen
-            </label>
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              className="w-full px-4 py-3 transition-all duration-200 border-2 border-gray-200 bg-white/90 rounded-2xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-            >
-              <option value="all">Semua Dokumen</option>
+            <label className="block mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(0,240,255,0.7)' }}>Jenis</label>
+            <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="neon-select text-xs sm:text-sm">
+              <option value="all">Semua</option>
               <option value="invoice">Invoice</option>
               <option value="receipt">Kwitansi</option>
             </select>
           </div>
-          
           <div>
-            <label className="block mb-3 text-sm font-semibold text-gray-700">
-              Status
-            </label>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full px-4 py-3 transition-all duration-200 border-2 border-gray-200 bg-white/90 rounded-2xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-            >
-              <option value="all">Semua Status</option>
+            <label className="block mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(0,240,255,0.7)' }}>Status</label>
+            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="neon-select text-xs sm:text-sm">
+              <option value="all">Semua</option>
               <option value="draft">Draft</option>
               <option value="issued">Terbit</option>
               <option value="paid">Lunas</option>
               <option value="overdue">Terlambat</option>
             </select>
           </div>
-          
           <div>
-            <label className="block mb-3 text-sm font-semibold text-gray-700">
-              Bulan
-            </label>
-            <input
-              type="month"
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="w-full px-4 py-3 transition-all duration-200 border-2 border-gray-200 bg-white/90 rounded-2xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-            />
+            <label className="block mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(0,240,255,0.7)' }}>Bulan</label>
+            <input type="month" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="neon-input text-xs sm:text-sm" />
           </div>
         </div>
       </div>
 
       {/* Documents Table */}
-      <div className="overflow-hidden border shadow-2xl bg-white/90 backdrop-blur-sm rounded-3xl border-gray-200/50">
+      <div className="glass-card overflow-hidden">
         {filteredDocuments.length === 0 ? (
           <div className="py-16 text-center">
-            <div className="flex items-center justify-center w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-gray-100 to-gray-200 rounded-3xl">
-              <FileText className="w-12 h-12 text-gray-400" />
+            <div className="flex items-center justify-center w-24 h-24 mx-auto mb-6 rounded-3xl"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <FileText className="w-12 h-12" style={{ color: 'rgba(255,255,255,0.15)' }} />
             </div>
-            <h3 className="mb-2 text-xl font-semibold text-gray-600">Tidak Ada Dokumen</h3>
-            <p className="text-gray-500">
+            <h3 className="text-xl font-semibold text-white mb-2">Tidak Ada Dokumen</h3>
+            <p style={{ color: 'rgba(255,255,255,0.4)' }}>
               {documents.length === 0 ? 'Belum ada dokumen yang dibuat' : 'Tidak ada dokumen yang sesuai dengan filter'}
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
+          <div className="overflow-x-auto -mx-0">
+            <table className="dark-table" style={{ minWidth: '640px' }}>
               <thead>
-                <tr className="border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
-                  <th className="px-8 py-6 text-xs font-bold tracking-wider text-left text-gray-600 uppercase">
-                    Dokumen
-                  </th>
-                  <th className="px-8 py-6 text-xs font-bold tracking-wider text-left text-gray-600 uppercase">
-                    Klien/Pembayar
-                  </th>
-                  <th className="px-8 py-6 text-xs font-bold tracking-wider text-left text-gray-600 uppercase">
-                    Jumlah
-                  </th>
-                  <th className="px-8 py-6 text-xs font-bold tracking-wider text-left text-gray-600 uppercase">
-                    Tanggal
-                  </th>
-                  <th className="px-8 py-6 text-xs font-bold tracking-wider text-left text-gray-600 uppercase">
-                    Status
-                  </th>
-                  <th className="px-8 py-6 text-xs font-bold tracking-wider text-left text-gray-600 uppercase">
-                    Aksi
-                  </th>
+                <tr>
+                  <th style={{ minWidth: '180px' }}>Dokumen</th>
+                  <th style={{ minWidth: '130px' }}>Klien/Pembayar</th>
+                  <th style={{ minWidth: '120px' }}>Jumlah</th>
+                  <th style={{ minWidth: '100px' }}>Tanggal</th>
+                  <th style={{ minWidth: '80px' }}>Status</th>
+                  <th style={{ minWidth: '110px' }}>Aksi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filteredDocuments.map((document, index) => (
-                  <tr key={`${document.type}-${document.id}`} className="transition-all duration-200 hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/50">
-                    <td className="px-8 py-6">
-                      <div className="flex items-center space-x-4">
-                        <div className={`p-3 rounded-2xl ${
-                          document.type === 'invoice' 
-                            ? 'bg-blue-500/10 text-blue-600' 
-                            : 'bg-amber-500/10 text-amber-600'
-                        }`}>
-                          {document.type === 'invoice' ? (
-                            <FileText className="w-6 h-6" />
-                          ) : (
-                            <Receipt className="w-6 h-6" />
-                          )}
+              <tbody>
+                {filteredDocuments.map((document) => (
+                  <tr key={`${document.type}-${document.id}`}>
+                    <td>
+                      <div className="flex items-center space-x-3">
+                        <div className="p-2.5 rounded-xl flex-shrink-0"
+                          style={{
+                            background: document.type === 'invoice' ? 'rgba(0,240,255,0.10)' : 'rgba(0,255,136,0.10)',
+                            border: `1px solid ${document.type === 'invoice' ? 'rgba(0,240,255,0.25)' : 'rgba(0,255,136,0.25)'}`
+                          }}>
+                          {document.type === 'invoice'
+                            ? <FileText className="w-4 h-4" style={{ color: '#00F0FF' }} />
+                            : <Receipt className="w-4 h-4" style={{ color: '#00FF88' }} />}
                         </div>
                         <div>
-                          <div className="text-sm font-bold text-gray-900">
-                            {document.title}
-                          </div>
-                          <div className="text-xs font-medium tracking-wide text-gray-500 uppercase">
+                          <p className="text-sm font-bold text-white">{document.title}</p>
+                          <p className="text-xs font-medium uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.35)' }}>
                             {document.type === 'invoice' ? 'Invoice' : 'Kwitansi'}
-                          </div>
+                          </p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-8 py-6">
-                      <div className="text-sm font-medium text-gray-900">{document.client || '-'}</div>
+                    <td>
+                      <p className="text-sm font-medium text-white">{document.client || '-'}</p>
                     </td>
-                    <td className="px-8 py-6">
-                      <div className="text-sm font-bold text-gray-900">
-                        {formatCurrency(document.amount)}
-                      </div>
+                    <td>
+                      <p className="text-sm font-bold text-white font-mono-luksuri">{formatCurrency(document.amount)}</p>
                     </td>
-                    <td className="px-8 py-6">
-                      <div className="text-sm font-medium text-gray-600">
-                        {formatDate(document.date)}
-                      </div>
+                    <td>
+                      <p className="text-sm" style={{ color: 'rgba(255,255,255,0.6)' }}>{formatDate(document.date)}</p>
                     </td>
-                    <td className="px-8 py-6">
-                      <span className={`inline-flex px-4 py-2 text-xs font-bold rounded-full border ${getStatusColor(document.status)}`}>
-                        {getStatusText(document.status)}
-                      </span>
+                    <td>
+                      <span className={getBadgeClass(document.status)}>{getStatusText(document.status)}</span>
                     </td>
-                    <td className="px-8 py-6">
+                    <td>
                       <button
                         onClick={() => handleRegenerate(document)}
                         disabled={isDownloading === document.id}
-                        className={`inline-flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${
-                          isDownloading === document.id
-                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                            : 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5'
-                        }`}
+                        className={isDownloading === document.id ? 'neon-button-ghost text-xs opacity-50 cursor-not-allowed' : 'neon-button text-xs'}
                       >
                         {isDownloading === document.id ? (
-                          <>
-                            <div className="w-4 h-4 border-2 border-gray-400 rounded-full border-t-transparent animate-spin"></div>
-                            <span>Processing...</span>
-                          </>
+                          <><div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" /><span>Processing...</span></>
                         ) : (
-                          <>
-                            <Download className="w-4 h-4" />
-                            <span>Download</span>
-                          </>
+                          <><Download className="w-3 h-3" /><span>Download</span></>
                         )}
                       </button>
                     </td>
@@ -557,19 +340,14 @@ export default function DocumentList() {
         )}
       </div>
 
-      {/* Debug Info (remove in production) */}
+      {/* Dev debug */}
       {process.env.NODE_ENV === 'development' && (
-        <div className="p-6 border border-yellow-200 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl">
+        <div className="p-5 rounded-2xl" style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.20)' }}>
           <div className="flex items-start space-x-3">
-            <AlertCircle className="flex-shrink-0 w-6 h-6 mt-1 text-yellow-600" />
-            <div>
-              <h4 className="mb-2 text-sm font-bold text-yellow-800">Debug Information</h4>
-              <div className="space-y-1 text-sm text-yellow-700">
-                <p>Total documents loaded: <span className="font-semibold">{documents.length}</span></p>
-                <p>Invoices: <span className="font-semibold">{documents.filter(d => d.type === 'invoice').length}</span> | 
-                   Receipts: <span className="font-semibold">{documents.filter(d => d.type === 'receipt').length}</span></p>
-                <p>Filtered results: <span className="font-semibold">{filteredDocuments.length}</span></p>
-              </div>
+            <AlertCircle className="flex-shrink-0 w-5 h-5 mt-0.5" style={{ color: '#FFBE0B' }} />
+            <div className="text-sm" style={{ color: 'rgba(251,191,36,0.8)' }}>
+              <p className="font-bold mb-1" style={{ color: '#FFBE0B' }}>Debug Info</p>
+              <p>Total: <strong>{documents.length}</strong> | Invoices: <strong>{documents.filter(d => d.type === 'invoice').length}</strong> | Receipts: <strong>{documents.filter(d => d.type === 'receipt').length}</strong> | Filtered: <strong>{filteredDocuments.length}</strong></p>
             </div>
           </div>
         </div>
