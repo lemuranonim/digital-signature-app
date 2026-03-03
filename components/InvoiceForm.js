@@ -13,7 +13,7 @@ export default function InvoiceForm() {
     issueDate: new Date().toISOString().split('T')[0], dueDate: '',
     notes: '', taxRate: 11, discountAmount: 0
   })
-  const [items, setItems] = useState([{ description: '', quantity: 1, unitPrice: 0 }])
+  const [items, setItems] = useState([{ description: '', quantity: 1, unitPrice: '' }])
   const [signature, setSignature] = useState('')
   const [signatureMetadata, setSignatureMetadata] = useState({
     type: 'manual', documentId: null, validationUrl: null,
@@ -26,11 +26,11 @@ export default function InvoiceForm() {
     setSignatureMetadata(meta || { type: 'manual', documentId: null, validationUrl: null, signedBy: null, signerTitle: null, timestamp: null })
   }
 
-  const addItem = () => setItems([...items, { description: '', quantity: 1, unitPrice: 0 }])
+  const addItem = () => setItems([...items, { description: '', quantity: 1, unitPrice: '' }])
   const removeItem = (i) => { if (items.length > 1) setItems(items.filter((_, idx) => idx !== i)) }
   const updateItem = (i, field, value) => { const u = [...items]; u[i][field] = value; setItems(u) }
 
-  const calculateSubtotal = () => items.reduce((s, it) => s + (it.quantity * it.unitPrice), 0)
+  const calculateSubtotal = () => items.reduce((s, it) => s + (it.quantity * (parseFloat(it.unitPrice) || 0)), 0)
   const calculateTax = () => (calculateSubtotal() - formData.discountAmount) * (formData.taxRate / 100)
   const calculateTotal = () => calculateSubtotal() - formData.discountAmount + calculateTax()
 
@@ -44,7 +44,7 @@ export default function InvoiceForm() {
       clientName: '', clientEmail: '', clientAddress: '', clientPhone: '',
       issueDate: new Date().toISOString().split('T')[0], dueDate: '', notes: '', taxRate: 11, discountAmount: 0
     })
-    setItems([{ description: '', quantity: 1, unitPrice: 0 }])
+    setItems([{ description: '', quantity: 1, unitPrice: '' }])
     setSignature('')
     setSignatureMetadata({ type: 'manual', documentId: null, validationUrl: null, signedBy: null, signerTitle: null, timestamp: null })
   }
@@ -71,7 +71,16 @@ export default function InvoiceForm() {
       }).select().single()
       if (invoiceError) throw invoiceError
       const { error: itemsError } = await supabase.from('invoice_items').insert(
-        items.map(it => ({ invoice_id: invoice.id, description: it.description, quantity: it.quantity, unit_price: it.unitPrice, total: it.quantity * it.unitPrice }))
+        items.map(it => {
+          const price = parseFloat(it.unitPrice) || 0; // Pastikan jadi angka
+          return {
+            invoice_id: invoice.id,
+            description: it.description,
+            quantity: it.quantity,
+            unit_price: price,
+            total: it.quantity * price
+          }
+        })
       )
       if (itemsError) throw itemsError
       await generateInvoicePDF({
@@ -176,14 +185,14 @@ export default function InvoiceForm() {
                   </div>
                   <div>
                     <label className="block mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(167,139,250,0.7)' }}>Unit Price (Rp)</label>
-                    <input type="number" required min="0" value={item.unitPrice}
-                      onChange={(e) => updateItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                      className="neon-input" placeholder="0" />
+                    <input type="number" min="0" value={item.unitPrice}
+                      onChange={(e) => updateItem(index, 'unitPrice', e.target.value === '' ? '' : e.target.value)}
+                      className="neon-input" placeholder="Opsional" />
                   </div>
                   <div className="col-span-2 sm:col-span-4 flex items-center gap-3">
                     <div className="flex-1 neon-input font-bold font-mono-luksuri text-center text-sm"
                       style={{ color: '#00F0FF', borderColor: 'rgba(0,240,255,0.20)' }}>
-                      Subtotal: Rp {(item.quantity * item.unitPrice).toLocaleString('id-ID')}
+                      Subtotal: Rp {((item.quantity * (parseFloat(item.unitPrice) || 0))).toLocaleString('id-ID')}
                     </div>
                     <button type="button" onClick={() => removeItem(index)} disabled={items.length === 1}
                       className="p-2.5 rounded-xl transition-all flex-shrink-0"

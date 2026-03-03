@@ -185,11 +185,21 @@ export const generateInvoicePDF = async (invoiceData) => {
   // Items
   setFont(pdf, 'normal', 9)
   invoiceData.items.forEach(item => {
-    pdf.text(item.description, 20, yPos)
-    pdf.text(item.quantity.toString(), 130, yPos, { align: 'right' })
-    pdf.text(`Rp ${item.unitPrice.toLocaleString('id-ID')}`, 155, yPos, { align: 'right' })
-    pdf.text(`Rp ${(item.quantity * item.unitPrice).toLocaleString('id-ID')}`, 185, yPos, { align: 'right' })
-    yPos += 6
+    const price = parseFloat(item.unitPrice) || 0;
+    const isParent = price > 0;
+
+    if (isParent) {
+      // Jika Item Induk / Berdiri Sendiri: Cetak normal rata kiri (X: 20) beserta harganya
+      pdf.text(item.description, 20, yPos);
+      pdf.text(item.quantity.toString(), 130, yPos, { align: 'right' });
+      pdf.text(`Rp ${price.toLocaleString('id-ID')}`, 155, yPos, { align: 'right' });
+      pdf.text(`Rp ${(item.quantity * price).toLocaleString('id-ID')}`, 185, yPos, { align: 'right' });
+    } else {
+      // Jika Rincian (Harga 0): Geser posisi X ke 26 agar menjorok ke kanan, dan tambah strip
+      pdf.text(`- ${item.description}`, 26, yPos);
+    }
+
+    yPos += 6;
   })
 
   yPos += 5
@@ -264,7 +274,7 @@ export const generateInvoicePDF = async (invoiceData) => {
   yPos = 290
   setFont(pdf, 'normal', 8)
   pdf.setTextColor(...COLORS.secondary)
-  pdf.text('This is a computer-generated invoice and requires no physical signature. To discuss your invoice, visit luksurireka.com/help', 20, yPos)
+  pdf.text('This is a computer-generated invoice and requires no physical signature. To discuss your invoice, visit https://luksurireka.com/help', 20, yPos)
 
   pdf.save(`Invoice-${invoiceData.invoiceNumber}.pdf`)
 }
@@ -411,7 +421,7 @@ export const generateReceiptPDF = async (receiptData) => {
   yPos = 290
   setFont(pdf, 'normal', 8)
   pdf.setTextColor(...COLORS.secondary)
-  pdf.text('This is a computer-generated receipt and requires no physical signature. To discuss your receipt, visit luksurireka.com/help', 20, yPos)
+  pdf.text('This is a computer-generated receipt and requires no physical signature. To discuss your receipt, visit https://luksurireka.com/help', 20, yPos)
 
   pdf.save(`Receipt-${receiptData.receiptNumber}.pdf`)
 }

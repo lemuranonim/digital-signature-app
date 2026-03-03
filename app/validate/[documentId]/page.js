@@ -173,7 +173,9 @@ export default function DocumentValidationPage({ params }) {
                 style={{ background: 'rgba(0,240,255,0.12)', border: '1px solid rgba(0,240,255,0.25)' }}>
                 <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" style={{ color: '#00F0FF' }} />
               </div>
-              <span className="font-bold gradient-text-cyan text-sm sm:text-base">Luksuri Sign</span>
+              <span className="font-bold text-[#00F0FF] text-sm sm:text-base">
+                LUKSURI REKA
+              </span>
             </a>
             <span className="text-[10px] sm:text-xs font-mono-luksuri px-2.5 sm:px-3 py-1 rounded-full"
               style={{ background: 'rgba(0,240,255,0.06)', border: '1px solid rgba(0,240,255,0.20)', color: 'rgba(0,240,255,0.7)' }}>
@@ -188,7 +190,12 @@ export default function DocumentValidationPage({ params }) {
         <div className="text-center mb-6 sm:mb-10">
           <div className="inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-2xl mb-4 sm:mb-5"
             style={{ background: 'rgba(0,240,255,0.08)', border: '1px solid rgba(0,240,255,0.20)' }}>
-            <Shield className="w-6 h-6 sm:w-7 sm:h-7" style={{ color: '#00F0FF' }} />
+            {/* Menggunakan tag img untuk memanggil logo.png dari folder public */}
+            <img
+              src="/logo.png"
+              alt="Luksuri Logo"
+              className="w-8 h-8 sm:w-9 sm:h-9 object-contain"
+            />
           </div>
           <h1 className="text-2xl sm:text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
             Document Validation Portal
@@ -309,14 +316,33 @@ export default function DocumentValidationPage({ params }) {
                     <table className="dark-table text-xs sm:text-sm">
                       <thead><tr><th>Description</th><th style={{ textAlign: 'center' }}>Qty</th><th style={{ textAlign: 'right' }}>Price</th><th style={{ textAlign: 'right' }}>Total</th></tr></thead>
                       <tbody>
-                        {documentData.items.map((item, i) => (
-                          <tr key={i}>
-                            <td className="font-medium text-white">{item.description}</td>
-                            <td style={{ textAlign: 'center', color: 'rgba(255,255,255,0.6)' }}>{item.quantity}</td>
-                            <td className="font-mono-luksuri" style={{ textAlign: 'right', color: 'rgba(255,255,255,0.6)' }}>Rp {item.unit_price?.toLocaleString('id-ID')}</td>
-                            <td className="font-bold font-mono-luksuri text-white" style={{ textAlign: 'right' }}>Rp {(item.quantity * item.unit_price)?.toLocaleString('id-ID')}</td>
-                          </tr>
-                        ))}
+                        {documentData.items.map((item, i) => {
+                          // 1. Cek apakah ini Item Induk (ada harga) atau Rincian (harga 0)
+                          const price = parseFloat(item.unit_price) || 0;
+                          const isParent = price > 0;
+
+                          return (
+                            <tr key={i}>
+                              <td className="font-medium text-white">
+                                {/* 2. Kita bungkus dengan div untuk mengatur jarak menjorok ke dalam khusus untuk rincian */}
+                                <div style={{ paddingLeft: isParent ? undefined : '1.5rem' }}>
+                                  {isParent ? item.description : `- ${item.description}`}
+                                </div>
+                              </td>
+
+                              {/* 3. Jika isParent true (ada harga), tampilkan angka. Jika false, kosongkan. */}
+                              <td style={{ textAlign: 'center', color: 'rgba(255,255,255,0.6)' }}>
+                                {isParent ? item.quantity : ''}
+                              </td>
+                              <td className="font-mono-luksuri" style={{ textAlign: 'right', color: 'rgba(255,255,255,0.6)' }}>
+                                {isParent ? `Rp ${price.toLocaleString('id-ID')}` : ''}
+                              </td>
+                              <td className="font-bold font-mono-luksuri text-white" style={{ textAlign: 'right' }}>
+                                {isParent ? `Rp ${(item.quantity * price).toLocaleString('id-ID')}` : ''}
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
