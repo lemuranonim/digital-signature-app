@@ -190,13 +190,32 @@ export const generateInvoicePDF = async (invoiceData) => {
 
     if (isParent) {
       // Jika Item Induk / Berdiri Sendiri: Cetak normal rata kiri (X: 20) beserta harganya
-      pdf.text(item.description, 20, yPos);
+      const descLines = pdf.splitTextToSize(item.description, 100);
+      
+      pdf.text(descLines[0], 20, yPos);
       pdf.text(item.quantity.toString(), 130, yPos, { align: 'right' });
       pdf.text(`Rp ${price.toLocaleString('id-ID')}`, 155, yPos, { align: 'right' });
       pdf.text(`Rp ${(item.quantity * price).toLocaleString('id-ID')}`, 185, yPos, { align: 'right' });
+
+      // Lanjutan baris deskripsi (jika ada)
+      if (descLines.length > 1) {
+        for (let i = 1; i < descLines.length; i++) {
+          yPos += 5;
+          pdf.text(descLines[i], 20, yPos);
+        }
+      }
     } else {
       // Jika Rincian (Harga 0): Geser posisi X ke 26 agar menjorok ke kanan, dan tambah strip
-      pdf.text(`- ${item.description}`, 26, yPos);
+      const descLines = pdf.splitTextToSize(`- ${item.description}`, 155);
+      
+      pdf.text(descLines[0], 26, yPos);
+
+      if (descLines.length > 1) {
+        for (let i = 1; i < descLines.length; i++) {
+          yPos += 5;
+          pdf.text(descLines[i], 26, yPos);
+        }
+      }
     }
 
     yPos += 6;
